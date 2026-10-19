@@ -9,6 +9,22 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>숨쉬듯 블러핑</title>
+<meta name="description" content="주말 일정 · 게임 기록 · 칩 계산">
+<meta property="og:type" content="website">
+<meta property="og:title" content="숨쉬듯 블러핑">
+<meta property="og:description" content="이번 주말 일정 투표하고, 다음 모임 확인하기 ♠♥♦♣">
+<meta property="og:image" content="https://jhshim17.github.io/poker/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://jhshim17.github.io/poker/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="숨쉬듯 블러핑">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
@@ -239,6 +255,24 @@ button.cell.fixed .dots i{background:#5a3a10}
 @media (max-width:380px){.suits{display:none}}
 .cal .dow.sat,button.cell.sat .d{color:#d9c9a3}
 .cal .dow.sun,button.cell.sun .d{color:#ef8a76}
+.rsvp{display:flex;flex-direction:column;gap:8px;padding-top:4px;border-top:1px solid rgba(220,170,79,.25)}
+.rsvp-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.rsvp-btns button{background:rgba(0,0,0,.25);border:1px solid rgba(220,170,79,.4);color:#f5dca3;border-radius:8px;padding:8px 0;font-weight:600;cursor:pointer}
+.rsvp-btns button[aria-pressed="true"]{background:var(--metal-btn);color:var(--on-gold);border-color:#f0c56c;box-shadow:0 0 14px rgba(230,160,60,.4)}
+.rsvp-btns button:disabled{opacity:.5;cursor:default}
+.rsvp-btns button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.rsvp-list{display:flex;flex-direction:column;gap:2px;font-size:13px}
+.rsvp-list b{color:#f5dca3;font-weight:600}
+.rsvp-list .dim{opacity:.6}
+.frow{grid-template-columns:64px auto minmax(0,1fr);column-gap:12px}
+.axis{grid-template-columns:76px 1fr}
+.badges{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+.badge{font-size:11px;white-space:nowrap;padding:2px 7px;border-radius:999px;background:rgba(220,170,79,.12);border:1px solid rgba(220,170,79,.4);color:#f5dca3}
+.hl{display:block;width:100%;text-align:left;background:rgba(220,170,79,.07);border:1px solid rgba(220,170,79,.25);border-radius:8px;padding:8px 10px;color:#f0d9a6;font-size:14px;cursor:pointer;font-style:italic}
+.hl .hl-lab{display:block;font-style:normal;font-size:11px;letter-spacing:.08em;color:var(--gold);margin-bottom:2px}
+.hl.add{font-style:normal;color:var(--muted);border-style:dashed;background:transparent;font-size:13px}
+.hl:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+#fin-note{width:100%}
 </style>
 
 </head>
@@ -328,11 +362,23 @@ function meetCard(map){
     <div class="when">${dayLabel(mt.date)} ${mt.time?`<small>${esc(mt.time)}</small>`:""}</div>
     ${mt.place||mt.address||mt.memo?`<div class="row2">${mt.place||mt.address?`<span>📍</span><span>${mt.place?`<b>${esc(mt.place)}</b>`:""}${mt.place&&mt.address?"<br>":""}${mt.address?`<span style="opacity:.8">${esc(mt.address)}</span>`:""}</span>`:""}${mt.memo?`<span>📝</span><span>${esc(mt.memo)}</span>`:""}</div>`:""}
     <div class="acts">${url?`<a href="${esc(url)}" target="_blank" rel="noopener">지도 열기</a>`:""}${mt.address?`<button data-act="meetcopy">주소 복사</button>`:""}<button data-act="meetedit">수정</button></div>
-    <div class="foot">${sameMonth?`${avail.length}명 가능${avail.length?" · "+avail.map(esc).join(", "):""}`:""}${by}</div></div></section>`;
+    ${rsvpHtml(mt)}
+    <div class="foot">${sameMonth?`투표 ${avail.length}명 가능${avail.length?" · "+avail.map(esc).join(", "):""}`:""}${by}</div></div></section>`;
 }
+function rsvpHtml(mt){
+  const r=mt.rsvp||{};const mine=S.me?r[S.me]:null;
+  const groups={yes:[],no:[],maybe:[]};Object.keys(r).forEach(n=>{if(groups[r[n]])groups[r[n]].push(n)});
+  const none=knownPlayers().filter(n=>!r[n]);
+  const lab={yes:"참석",no:"불참",maybe:"미정"};
+  return `<div class="rsvp"><div class="rsvp-btns" role="group" aria-label="내 참석 여부">${["yes","no","maybe"].map(k=>`<button data-act="rsvp" data-v="${k}" aria-pressed="${mine===k}" ${S.me&&S.db?"":"disabled"}>${lab[k]}</button>`).join("")}</div>
+    <div class="rsvp-list">${["yes","no","maybe"].filter(k=>groups[k].length).map(k=>`<span><b>${lab[k]} ${groups[k].length}</b> ${groups[k].map(esc).join(", ")}</span>`).join("")}${none.length?`<span class="dim">응답 전 ${none.map(esc).join(", ")}</span>`:""}</div></div>`;
+}
+async function setRsvp(v){if(!S.me||!S.meet||!S.db)return;const cur=(S.meet.rsvp||{})[S.me];const nv=cur===v?firebase.firestore.FieldValue.delete():v;
+  S.meet={...S.meet,rsvp:{...(S.meet.rsvp||{})}};if(cur===v)delete S.meet.rsvp[S.me];else S.meet.rsvp[S.me]=v;render();
+  try{await S.db.doc("config/meet").update(new firebase.firestore.FieldPath("rsvp",S.me),nv)}catch(err){writeFailed(err)}}
 function readMeetForm(){document.querySelectorAll("[data-mt]").forEach(el=>{S.meetEdit[el.dataset.mt]=el.value})}
 async function saveMeet(){readMeetForm();const e=S.meetEdit;if(!e.date){toast("날짜를 골라주세요");return}
-  const doc={date:e.date,time:e.time.trim(),place:e.place.trim(),address:e.address.trim(),map:e.map.trim(),memo:e.memo.trim(),by:S.me||"",updated:Date.now()};
+  const doc={date:e.date,time:e.time.trim(),place:e.place.trim(),address:e.address.trim(),map:e.map.trim(),memo:e.memo.trim(),by:S.me||"",updated:Date.now(),rsvp:(S.meet&&S.meet.date===e.date&&S.meet.rsvp)||{}};
   try{await S.db.doc("config/meet").set(doc);S.meet=doc;S.meetEdit=null;if(doc.date.slice(0,7)!==S.month){S.month=doc.date.slice(0,7);S.monthTouched=true;S.localSlots=null;subAvail()}render();toast("모임 공지를 저장했어요")}catch(err){writeFailed(err)}}
 function isOn(v){return v===true||(Array.isArray(v)&&v.length>0)}
 function renderSched(){
@@ -392,6 +438,20 @@ function normResults(rs){rs=rs||[];if(rs.every(r=>typeof r.win==="boolean"))retu
 function orderRes(rs){return [...normResults(rs)].sort((a,b)=>(b.top?1:0)-(a.top?1:0)||(b.win?1:0)-(a.win?1:0)||a.name.localeCompare(b.name,"ko"))}
 function gameKey(g){return String(g.date||"")+"|"+String(g.created||0)}
 function dotHtml(c,big){return `<span class="dot ${c===true?"f":c===false?"e":"none"}${big?" big":""}"></span>`}
+function badgesFor(name,asc){
+  const played=asc.map(g=>({g,r:normResults(g.results).find(x=>x.name===name)})).filter(x=>x.r);
+  if(!played.length)return [];const out=[];const last=played[played.length-1];
+  let streak=0;for(let i=played.length-1;i>=0&&played[i].r.win;i--)streak++;
+  if(streak>=3)out.push({e:"🔥",t:streak+"연속 +",d:"최근 "+streak+"판 연속 +"});
+  const tops=played.filter(x=>x.r.top);
+  if(last.r.top&&tops.length===1)out.push({e:"👑",t:"첫 우승",d:"처음으로 1등"});
+  else if(last.r.top&&played.length>=2&&played[played.length-2].r.top)out.push({e:"👑",t:"연속 우승",d:"2판 연속 1등"});
+  else if(last.r.top)out.push({e:"♛",t:"직전 우승",d:"가장 최근 판 1등"});
+  if(last.r.win&&played.length>=3&&!played[played.length-2].r.win&&!played[played.length-3].r.win)out.push({e:"🌱",t:"반등",d:"−가 이어지다가 다시 +"});
+  if(played.length===1)out.push({e:"🎉",t:"첫 참가",d:"첫 판 기록"});
+  const recent=asc.slice(-5);if(recent.length>=3&&recent.every(g=>normResults(g.results).some(x=>x.name===name)))out.push({e:"📅",t:"개근",d:"최근 "+recent.length+"판 모두 참석"});
+  return out;
+}
 function renderStats(){
   const asc=[...S.games].sort((a,b)=>gameKey(a).localeCompare(gameKey(b)));const games=[...asc].reverse();
   const hist={};asc.forEach(g=>normResults(g.results).forEach(r=>{(hist[r.name]=hist[r.name]||[]).push(r.win)}));
@@ -400,8 +460,10 @@ function renderStats(){
     <div class="legendbox"><span>${dotHtml(true)} 속이 찬 동그라미는 <b>+</b></span><span>${dotHtml(false)} 빈 동그라미는 <b>−</b> 입니다</span><span class="muted">오른쪽이 가장 최근 판이에요</span></div>`;
   if(!names.length)h+=`<p class="muted small" style="margin:0">아직 기록이 없어요. 게임이 끝나면 칩 계산 탭에서 저장하거나 아래에서 결과를 추가하세요.</p>`;
   else{
+    const allRegular=names.every(n=>badgesFor(n,asc).some(x=>x.t==="개근"));
     h+=`<div class="flow">${names.map(n=>{const last=hist[n].slice(-5);const pad=Array(5-last.length).fill(null);
-      return `<div class="frow"><b>${esc(n)}</b><span class="dots5">${[...pad,...last].map(c=>dotHtml(c,1)).join("")}</span></div>`}).join("")}</div>
+      const bs=badgesFor(n,asc).filter(x=>!(x.t==="개근"&&allRegular));
+      return `<div class="frow"><b>${esc(n)}</b><span class="dots5">${[...pad,...last].map(c=>dotHtml(c,1)).join("")}</span><span class="badges">${bs.map(x=>`<span class="badge" title="${esc(x.d)}">${x.e} ${esc(x.t)}</span>`).join("")}</span></div>`}).join("")}</div>
       <div class="axis"><span></span><span><span>← 예전</span><span>최근 →</span></span></div>`;
   }
   h+=`</section>`;
@@ -411,7 +473,8 @@ function renderStats(){
     h+=`<div class="panel game"><div class="spread"><div><b>${esc(g.title||"모임")}</b> <span class="muted small num">${esc(g.date||"")}</span></div>
       ${S.confirmDel===g.id?`<div class="row"><span class="small">삭제할까요?</span><button class="btn danger" data-act="delyes" data-id="${g.id}">삭제</button><button class="btn" data-act="delno">취소</button></div>`
       :(S.canWrite?`<button class="btn ghost small" data-act="del" data-id="${g.id}" aria-label="이 기록 삭제">삭제</button>`:"")}</div>
-      ${g.note?`<div class="small" style="color:var(--gold)">${esc(g.note)}</div>`:""}
+      ${S.noteEdit===g.id?`<div class="row"><input type="text" id="note-${g.id}" value="${esc(g.note||"")}" placeholder="예: 기정 7-2로 올인 블러핑 성공" style="flex:1;min-width:0" maxlength="80"><button class="btn small" data-act="notecancel">취소</button><button class="btn primary small" data-act="notesave" data-id="${g.id}">저장</button></div>`
+        :(g.note?`<button class="hl" data-act="noteedit" data-id="${g.id}" aria-label="오늘의 한 줄 고치기"><span class="hl-lab">오늘의 한 줄</span>“${esc(g.note)}”</button>`:`<button class="hl add" data-act="noteedit" data-id="${g.id}">＋ 오늘의 한 줄 남기기</button>`)}
       <div class="gres">${rs.map(r=>`<span>${r.top?'<span class="crown">♛</span>':""}${esc(r.name)} ${dotHtml(r.win)}</span>`).join("")}</div></div>`});
   h+=`<p class="small muted" style="margin:0">금액은 저장하지 않아요. 그날 정산은 칩 계산 탭에서만 보여요.</p></section>`;
   return h;
@@ -420,7 +483,7 @@ function renderForm(){
   const f=S.form;
   return `<div class="panel" style="display:flex;flex-direction:column;gap:10px">
     <div class="row"><input type="date" id="f-date" value="${esc(f.date)}"><input type="text" id="f-title" value="${esc(f.title)}" placeholder="모임 이름" style="flex:1"></div>
-    <input type="text" id="f-note" value="${esc(f.note)}" placeholder="메모 (선택)">
+    <input type="text" id="f-note" value="${esc(f.note)}" placeholder="오늘의 한 줄 (선택)">
     <div class="small muted">각자 땄으면 ●, 잃었으면 ○ 를 고르고, 1등에게 ♛ 를 눌러주세요.</div>
     ${f.rows.map((r,i)=>`<div class="formrow"><input type="text" id="f-n${i}" data-f="name" data-i="${i}" value="${esc(r.name)}" placeholder="이름" list="plist">
       <span class="seg"><button type="button" data-act="fwin" data-i="${i}" data-v="1" aria-pressed="${r.win===true}">● +</button><button type="button" data-act="fwin" data-i="${i}" data-v="0" aria-pressed="${r.win===false}">○ −</button></span>
@@ -475,7 +538,7 @@ function renderCalc(){
   if(ns.length){
     h+=`<section><div class="spread"><h2>딜러 정산</h2><label class="row small muted">딜러 <select id="c-dealer" data-dealer="1">${ns.map(n=>`<option ${n.p.name===S.config.dealer?"selected":""}>${esc(n.p.name)}</option>`).join("")}</select></label></div>
       <p class="small muted" style="margin:0">딜러가 모두의 입금을 받고, 끝나면 각자 남은 칩만큼 돌려줘요.</p>${settleHtml(ns)}</section>`;
-    h+=`<section>${S.confirmFinish?`<div class="panel" style="display:flex;flex-direction:column;gap:10px"><b>게임 기록에 저장할까요?</b><span class="small muted">${ns.length}명의 결과가 오늘 날짜로 저장되고, 모두의 칩 입력은 비워져요.</span><div class="row" style="justify-content:flex-end"><button class="btn" data-act="finishno">취소</button><button class="btn primary" data-act="finishyes">저장</button></div></div>`
+    h+=`<section>${S.confirmFinish?`<div class="panel" style="display:flex;flex-direction:column;gap:10px"><b>게임 기록에 저장할까요?</b><span class="small muted">${ns.length}명의 ●/○ 결과가 오늘 날짜로 저장되고, 모두의 칩 입력과 금액은 지워져요.</span><input type="text" id="fin-note" placeholder="오늘의 한 줄 (선택) 예: 기정 7-2로 올인 블러핑 성공" maxlength="80"><div class="row" style="justify-content:flex-end"><button class="btn" data-act="finishno">취소</button><button class="btn primary" data-act="finishyes">저장</button></div></div>`
       :`<div class="row" style="justify-content:flex-end"><button class="btn primary" data-act="finish">게임 끝 · 기록에 저장</button></div>`}</section>`;
   }
   return h;
@@ -544,6 +607,7 @@ document.getElementById("app").addEventListener("click",async e=>{
   if(a==="mprev"||a==="mnext"){S.monthTouched=true;const [y,m]=S.month.split("-").map(Number);S.month=monthKey(new Date(y,m-1+(a==="mprev"?-1:1),1));S.localSlots=null;subAvail();render()}
   else if(a==="day")toggleDay(b.dataset.day);
   else if(a==="meetnew"||a==="meetedit"||a==="fixday"){const mt=S.meet&&S.meet.date>=today()?S.meet:{};S.meetEdit={date:a==="fixday"?b.dataset.day:(mt.date||""),time:mt.time||"13:00 – 18:00",place:mt.place||"",address:mt.address||"",map:mt.map||"",memo:mt.memo||""};render();window.scrollTo(0,0)}
+  else if(a==="rsvp")setRsvp(b.dataset.v);
   else if(a==="meetcancel"){S.meetEdit=null;render()}
   else if(a==="meetsave")saveMeet();
   else if(a==="meetclear"){try{await S.db.doc("config/meet").delete();S.meet=null;S.meetEdit=null;render();toast("공지를 내렸어요")}catch(err){writeFailed(err)}}
@@ -557,6 +621,9 @@ document.getElementById("app").addEventListener("click",async e=>{
   else if(a==="fsave"){readForm();const f=S.form;const rows=f.rows.filter(r=>r.name.trim()&&typeof r.win==="boolean").map(r=>({name:r.name.trim(),win:r.win,top:!!r.top}));
     if(rows.length<2){toast("두 명 이상 ●/○ 를 골라주세요");return}
     if(await saveGame({date:f.date,title:f.title.trim()||"모임",note:f.note.trim(),results:rows,created:Date.now()})){S.form=null;render()}}
+  else if(a==="noteedit"){S.noteEdit=b.dataset.id;render();const el=document.getElementById("note-"+b.dataset.id);if(el)el.focus()}
+  else if(a==="notecancel"){S.noteEdit=null;render()}
+  else if(a==="notesave"){const id=b.dataset.id;const v=(document.getElementById("note-"+id)||{}).value||"";try{await S.db.doc("games/"+id).update({note:v.trim()});S.noteEdit=null;render();toast("남겼어요")}catch(err){writeFailed(err)}}
   else if(a==="del"){S.confirmDel=b.dataset.id;render()}
   else if(a==="delno"){S.confirmDel=null;render()}
   else if(a==="delyes"){try{await S.db.doc("games/"+b.dataset.id).delete();toast("삭제했어요")}catch(err){writeFailed(err)}S.confirmDel=null;render()}
@@ -567,7 +634,7 @@ document.getElementById("app").addEventListener("click",async e=>{
   else if(a==="finish"){S.confirmFinish=true;render()}
   else if(a==="finishno"){S.confirmFinish=false;render()}
   else if(a==="finishyes"){const ns=nets();if(ns.length<2){toast("두 명 이상 반영해야 저장할 수 있어요");return}
-    const ok=await saveGame({date:today(),title:`${new Date().getMonth()+1}월 모임`,note:"",results:ns.map(n=>({name:n.p.name,win:n.net>0,top:n.net>0&&n.net===ns[0].net})),created:Date.now()});
+    const finNote=((document.getElementById("fin-note")||{}).value||"").trim();const ok=await saveGame({date:today(),title:`${new Date().getMonth()+1}월 모임`,note:finNote,results:ns.map(n=>({name:n.p.name,win:n.net>0,top:n.net>0&&n.net===ns[0].net})),created:Date.now()});
     if(ok){try{const batch=S.db.batch();ns.forEach(n=>batch.delete(S.db.doc("config/chip-"+hex(n.p.name))));await batch.commit()}catch(err){}
       S.my={name:S.my.name,counts:[],extra:0};saveMy();S.confirmFinish=false;S.tab="stats";render()}}
 });
