@@ -273,6 +273,15 @@ button.cell.fixed .dots i{background:#5a3a10}
 .hl.add{font-style:normal;color:var(--muted);border-style:dashed;background:transparent;font-size:13px}
 .hl:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 #fin-note{width:100%}
+.lines{display:flex;flex-direction:column;gap:6px;background:rgba(220,170,79,.06);border:1px solid rgba(220,170,79,.22);border-radius:8px;padding:8px 10px}
+.lines .hl-lab{font-size:11px;letter-spacing:.08em;color:var(--gold)}
+.line{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:baseline;font-size:14px;text-align:left;background:none;border:0;padding:0;color:inherit;width:100%}
+.line .who{font-size:12px;font-weight:700;color:#f5dca3;white-space:nowrap}
+.line .txt{font-style:italic;color:#f0d9a6;overflow-wrap:anywhere}
+.line.mine{cursor:pointer}
+.line.mine .edit{font-size:11px;color:var(--muted);text-decoration:underline}
+.line.mine:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.lines .hl.add{margin-top:2px}
 </style>
 
 </head>
@@ -452,6 +461,16 @@ function badgesFor(name,asc){
   const recent=asc.slice(-5);if(recent.length>=3&&recent.every(g=>normResults(g.results).some(x=>x.name===name)))out.push({e:"📅",t:"개근",d:"최근 "+recent.length+"판 모두 참석"});
   return out;
 }
+function gameLines(g){const L={...(g.lines||{})};if(g.note&&!Object.keys(L).length)L[""]=g.note;return L}
+function linesHtml(g){
+  const L=gameLines(g);const names=Object.keys(L).filter(n=>n!==S.me&&L[n]);const mine=S.me?L[S.me]:"";
+  let h=`<div class="lines"><div class="hl-lab">오늘의 한 줄</div>`;
+  names.forEach(n=>{h+=`<div class="line"><span class="who">${n?esc(n):"익명"}</span><span class="txt">“${esc(L[n])}”</span></div>`});
+  if(S.noteEdit===g.id)h+=`<div class="row"><input type="text" id="note-${g.id}" value="${esc(mine||"")}" placeholder="예: 기정 7-2로 올인 블러핑 성공" style="flex:1;min-width:0" maxlength="80"><button class="btn small" data-act="notecancel">취소</button><button class="btn primary small" data-act="notesave" data-id="${g.id}">저장</button></div><div class="small muted">비우고 저장하면 내 한 줄이 지워져요.</div>`;
+  else if(mine)h+=`<button class="line mine" data-act="noteedit" data-id="${g.id}" aria-label="내 한 줄 고치기"><span class="who">${esc(S.me)}</span><span class="txt">“${esc(mine)}”</span><span class="edit">고치기</span></button>`;
+  else if(S.me)h+=`<button class="hl add" data-act="noteedit" data-id="${g.id}">＋ ${esc(S.me)}의 한 줄 남기기</button>`;
+  return h+`</div>`;
+}
 function renderStats(){
   const asc=[...S.games].sort((a,b)=>gameKey(a).localeCompare(gameKey(b)));const games=[...asc].reverse();
   const hist={};asc.forEach(g=>normResults(g.results).forEach(r=>{(hist[r.name]=hist[r.name]||[]).push(r.win)}));
@@ -473,8 +492,7 @@ function renderStats(){
     h+=`<div class="panel game"><div class="spread"><div><b>${esc(g.title||"모임")}</b> <span class="muted small num">${esc(g.date||"")}</span></div>
       ${S.confirmDel===g.id?`<div class="row"><span class="small">삭제할까요?</span><button class="btn danger" data-act="delyes" data-id="${g.id}">삭제</button><button class="btn" data-act="delno">취소</button></div>`
       :(S.canWrite?`<button class="btn ghost small" data-act="del" data-id="${g.id}" aria-label="이 기록 삭제">삭제</button>`:"")}</div>
-      ${S.noteEdit===g.id?`<div class="row"><input type="text" id="note-${g.id}" value="${esc(g.note||"")}" placeholder="예: 기정 7-2로 올인 블러핑 성공" style="flex:1;min-width:0" maxlength="80"><button class="btn small" data-act="notecancel">취소</button><button class="btn primary small" data-act="notesave" data-id="${g.id}">저장</button></div>`
-        :(g.note?`<button class="hl" data-act="noteedit" data-id="${g.id}" aria-label="오늘의 한 줄 고치기"><span class="hl-lab">오늘의 한 줄</span>“${esc(g.note)}”</button>`:`<button class="hl add" data-act="noteedit" data-id="${g.id}">＋ 오늘의 한 줄 남기기</button>`)}
+      ${linesHtml(g)}
       <div class="gres">${rs.map(r=>`<span>${r.top?'<span class="crown">♛</span>':""}${esc(r.name)} ${dotHtml(r.win)}</span>`).join("")}</div></div>`});
   h+=`<p class="small muted" style="margin:0">금액은 저장하지 않아요. 그날 정산은 칩 계산 탭에서만 보여요.</p></section>`;
   return h;
@@ -483,7 +501,7 @@ function renderForm(){
   const f=S.form;
   return `<div class="panel" style="display:flex;flex-direction:column;gap:10px">
     <div class="row"><input type="date" id="f-date" value="${esc(f.date)}"><input type="text" id="f-title" value="${esc(f.title)}" placeholder="모임 이름" style="flex:1"></div>
-    <input type="text" id="f-note" value="${esc(f.note)}" placeholder="오늘의 한 줄 (선택)">
+    <input type="text" id="f-note" value="${esc(f.note)}" placeholder="내 오늘의 한 줄 (선택)">
     <div class="small muted">각자 땄으면 ●, 잃었으면 ○ 를 고르고, 1등에게 ♛ 를 눌러주세요.</div>
     ${f.rows.map((r,i)=>`<div class="formrow"><input type="text" id="f-n${i}" data-f="name" data-i="${i}" value="${esc(r.name)}" placeholder="이름" list="plist">
       <span class="seg"><button type="button" data-act="fwin" data-i="${i}" data-v="1" aria-pressed="${r.win===true}">● +</button><button type="button" data-act="fwin" data-i="${i}" data-v="0" aria-pressed="${r.win===false}">○ −</button></span>
@@ -538,7 +556,7 @@ function renderCalc(){
   if(ns.length){
     h+=`<section><div class="spread"><h2>딜러 정산</h2><label class="row small muted">딜러 <select id="c-dealer" data-dealer="1">${ns.map(n=>`<option ${n.p.name===S.config.dealer?"selected":""}>${esc(n.p.name)}</option>`).join("")}</select></label></div>
       <p class="small muted" style="margin:0">딜러가 모두의 입금을 받고, 끝나면 각자 남은 칩만큼 돌려줘요.</p>${settleHtml(ns)}</section>`;
-    h+=`<section>${S.confirmFinish?`<div class="panel" style="display:flex;flex-direction:column;gap:10px"><b>게임 기록에 저장할까요?</b><span class="small muted">${ns.length}명의 ●/○ 결과가 오늘 날짜로 저장되고, 모두의 칩 입력과 금액은 지워져요.</span><input type="text" id="fin-note" placeholder="오늘의 한 줄 (선택) 예: 기정 7-2로 올인 블러핑 성공" maxlength="80"><div class="row" style="justify-content:flex-end"><button class="btn" data-act="finishno">취소</button><button class="btn primary" data-act="finishyes">저장</button></div></div>`
+    h+=`<section>${S.confirmFinish?`<div class="panel" style="display:flex;flex-direction:column;gap:10px"><b>게임 기록에 저장할까요?</b><span class="small muted">${ns.length}명의 ●/○ 결과가 오늘 날짜로 저장되고, 모두의 칩 입력과 금액은 지워져요.</span><input type="text" id="fin-note" placeholder="내 오늘의 한 줄 (선택) 예: 기정 7-2로 올인 블러핑 성공" maxlength="80"><div class="row" style="justify-content:flex-end"><button class="btn" data-act="finishno">취소</button><button class="btn primary" data-act="finishyes">저장</button></div></div>`
       :`<div class="row" style="justify-content:flex-end"><button class="btn primary" data-act="finish">게임 끝 · 기록에 저장</button></div>`}</section>`;
   }
   return h;
@@ -620,10 +638,11 @@ document.getElementById("app").addEventListener("click",async e=>{
   else if(a==="ftop"){readForm();const r=S.form.rows[+b.dataset.i];const on=!r.top;S.form.rows.forEach(x=>x.top=false);r.top=on;if(on)r.win=true;render()}
   else if(a==="fsave"){readForm();const f=S.form;const rows=f.rows.filter(r=>r.name.trim()&&typeof r.win==="boolean").map(r=>({name:r.name.trim(),win:r.win,top:!!r.top}));
     if(rows.length<2){toast("두 명 이상 ●/○ 를 골라주세요");return}
-    if(await saveGame({date:f.date,title:f.title.trim()||"모임",note:f.note.trim(),results:rows,created:Date.now()})){S.form=null;render()}}
+    if(await saveGame({date:f.date,title:f.title.trim()||"모임",lines:f.note.trim()&&S.me?{[S.me]:f.note.trim()}:{},note:"",results:rows,created:Date.now()})){S.form=null;render()}}
   else if(a==="noteedit"){S.noteEdit=b.dataset.id;render();const el=document.getElementById("note-"+b.dataset.id);if(el)el.focus()}
   else if(a==="notecancel"){S.noteEdit=null;render()}
-  else if(a==="notesave"){const id=b.dataset.id;const v=(document.getElementById("note-"+id)||{}).value||"";try{await S.db.doc("games/"+id).update({note:v.trim()});S.noteEdit=null;render();toast("남겼어요")}catch(err){writeFailed(err)}}
+  else if(a==="notesave"){const id=b.dataset.id;const v=((document.getElementById("note-"+id)||{}).value||"").trim();if(!S.me){S.whoOpen=true;renderWho();return}
+    try{await S.db.doc("games/"+id).update(new firebase.firestore.FieldPath("lines",S.me),v?v:firebase.firestore.FieldValue.delete());S.noteEdit=null;render();toast(v?"남겼어요":"지웠어요")}catch(err){writeFailed(err)}}
   else if(a==="del"){S.confirmDel=b.dataset.id;render()}
   else if(a==="delno"){S.confirmDel=null;render()}
   else if(a==="delyes"){try{await S.db.doc("games/"+b.dataset.id).delete();toast("삭제했어요")}catch(err){writeFailed(err)}S.confirmDel=null;render()}
@@ -634,7 +653,7 @@ document.getElementById("app").addEventListener("click",async e=>{
   else if(a==="finish"){S.confirmFinish=true;render()}
   else if(a==="finishno"){S.confirmFinish=false;render()}
   else if(a==="finishyes"){const ns=nets();if(ns.length<2){toast("두 명 이상 반영해야 저장할 수 있어요");return}
-    const finNote=((document.getElementById("fin-note")||{}).value||"").trim();const ok=await saveGame({date:today(),title:`${new Date().getMonth()+1}월 모임`,note:finNote,results:ns.map(n=>({name:n.p.name,win:n.net>0,top:n.net>0&&n.net===ns[0].net})),created:Date.now()});
+    const finNote=((document.getElementById("fin-note")||{}).value||"").trim();const ok=await saveGame({date:today(),title:`${new Date().getMonth()+1}월 모임`,lines:finNote&&S.me?{[S.me]:finNote}:{},note:"",results:ns.map(n=>({name:n.p.name,win:n.net>0,top:n.net>0&&n.net===ns[0].net})),created:Date.now()});
     if(ok){try{const batch=S.db.batch();ns.forEach(n=>batch.delete(S.db.doc("config/chip-"+hex(n.p.name))));await batch.commit()}catch(err){}
       S.my={name:S.my.name,counts:[],extra:0};saveMy();S.confirmFinish=false;S.tab="stats";render()}}
 });
@@ -656,7 +675,7 @@ function subAvail(){if(!S.db)return;if(unAvail)unAvail();
     if(S.localSlots&&!slotWriting&&!slotTimer&&mineSrv&&JSON.stringify(mineSrv.slots)===JSON.stringify(S.localSlots.slots))S.localSlots=null;
     if(S.tab==="sched"&&!(document.activeElement&&document.activeElement.matches("#app input")))render()},()=>{})}
 S.tab=load("tab","sched");
-const SEED={date:"2026-10",title:"10월 비정기모임",note:"☆ 필규 첫 1등 축하 ☆",created:1792240000000,results:[{name:"필규",win:true,top:true},{name:"승구",win:true,top:false},{name:"시즈",win:true,top:false},{name:"안테",win:false,top:false},{name:"지수",win:false,top:false},{name:"기정",win:false,top:false}]};
+const SEED={date:"2026-10",title:"10월 비정기모임",note:"",lines:{"승구":"☆ 필규 첫 1등 축하 ☆"},created:1792240000000,results:[{name:"필규",win:true,top:true},{name:"승구",win:true,top:false},{name:"시즈",win:true,top:false},{name:"안테",win:false,top:false},{name:"지수",win:false,top:false},{name:"기정",win:false,top:false}]};
 (function start(){
   const cfg=window.FIREBASE_CONFIG;S.dbReady=true;
   if(!window.firebase||!cfg||!cfg.projectId||String(cfg.apiKey).includes("여기에")){S.db=null;S.canWrite=false;render();return}
@@ -665,6 +684,7 @@ const SEED={date:"2026-10",title:"10월 비정기모임",note:"☆ 필규 첫 1�
   db.collection("games").onSnapshot(snap=>{
     if(snap.empty&&!snap.metadata.fromCache&&!seeded){seeded=true;db.doc("games/g-2026-10-irregular").set(SEED).catch(()=>{})}
     snap.docs.forEach(d=>{const g=d.data();if((g.results||[]).some(r=>"amount" in r)){db.doc("games/"+d.id).set({...g,results:normResults(g.results).map(r=>({name:r.name,win:r.win,top:!!r.top}))}).catch(()=>{})}});
+    snap.docs.forEach(d=>{const g=d.data();if(d.id==="g-2026-10-irregular"&&g.note&&!g.lines){db.doc("games/"+d.id).update({lines:{"승구":g.note},note:""}).catch(()=>{})}});
     S.games=snap.docs.map(d=>({id:d.id,...d.data()}));if(!(document.activeElement&&document.activeElement.matches("input")))render()},e=>{console.error(e);toast("데이터를 불러오지 못했어요. Firestore 규칙을 확인하세요")});
   db.doc("config/main").onSnapshot(snap=>{if(snap.exists&&!S.cfgLocal){const d=snap.data();S.config={...DEFAULT_CONFIG,...JSON.parse(JSON.stringify(d))};
     if(!(S.tab==="calc"&&document.activeElement&&document.activeElement.matches("input")))render()}},()=>{});
