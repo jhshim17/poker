@@ -4,18 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1d5a41">
-<script>
-/* ▼▼▼ Firebase 콘솔에서 복사한 설정값을 여기에 붙여넣으세요 ▼▼▼ */
-window.FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDXl-YxaUUg-0LtLzViHne04C5rkBZHgRE",
-  authDomain: "poker-meetup.firebaseapp.com",
-  projectId: "poker-meetup",
-  storageBucket: "poker-meetup.firebasestorage.app",
-  messagingSenderId: "672250408504",
-  appId: "1:672250408504:web:6a43220a68693c2693c0cd"
-};
-/* ▲▲▲ 여기까지 ▲▲▲ */
-</script>
+<script src="firebase-config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -177,7 +166,7 @@ const DEFAULT_CONFIG={unit:"",rate:0.1,buyIn:500,chips:[
   {name:"파랑",color:"#2c5aa0",value:10},{name:"초록",color:"#2e7d4f",value:25},{name:"검정",color:"#222222",value:100}]};
 const S={tab:"sched",games:[],avail:[],config:DEFAULT_CONFIG,db:null,dbReady:false,canWrite:true,
   me:load("me",""),month:monthKey(new Date()),localSlots:null,confirmDel:null,
-  calc:load("calc5",null),form:null};
+  form:null};
 
 function load(k,d){try{const v=localStorage.getItem("pk_"+k);return v?JSON.parse(v):d}catch(e){return d}}
 function save(k,v){try{localStorage.setItem("pk_"+k,JSON.stringify(v))}catch(e){}}
@@ -321,41 +310,53 @@ async function saveGame(g){
 /* ---------- chips ---------- */
 const CHIPS=[{name:"천원",color:"#4a7fc1",value:1000},{name:"오천원",color:"#d9782f",value:5000},{name:"만원",color:"#4f9a5e",value:10000},{name:"오만원",color:"#d8a928",value:50000}];
 function won(n,sign){const r=Math.round(n);const s=Math.abs(r).toLocaleString()+"원";return sign?(r>0?"+":r<0?"−":"")+s:s}
-function defaultCalc(){
-  return {example:true,players:[
-    {name:"필규",extra:0,counts:[3,1,2,15]},{name:"승구",extra:0,counts:[1,0,1,11]},
-    {name:"시즈",extra:0,counts:[4,1,3,8]},{name:"안테",extra:0,counts:[2,0,4,1]},
-    {name:"지수",extra:0,counts:[0,2,2,0]},{name:"기정",extra:300000,counts:[0,2,4,3]}],dealer:"필규"};
-}
-if(!S.calc)S.calc=defaultCalc();
+S.chipSubs=[];S.my=load("mychip",null)||{name:"",counts:[],extra:0};S.confirmChipDel=null;S.confirmFinish=false;
 function buyIn(){const v=Number(S.config.buyIn);return v>=1000?v:300000}
 function points(p){return CHIPS.reduce((a,c,i)=>a+(Number(p.counts[i])||0)*c.value,0)}
-function nets(){return S.calc.players.map(p=>{const pts=points(p);const inn=buyIn()+(Number(p.extra)||0);return {p,pts,inn,net:pts-inn}})}
+function inOf(p){return buyIn()+(Number(p.extra)||0)}
+function nets(){return S.chipSubs.map(p=>{const pts=points(p);const inn=inOf(p);return {p,pts,inn,net:pts-inn}}).sort((a,b)=>b.net-a.net)}
+function mySub(){const n=(S.my.name||S.me||"").trim();return S.chipSubs.find(c=>c.name===n)}
+function myState(){const sub=mySub();if(!sub)return "none";const same=JSON.stringify((sub.counts||[]).map(Number))===JSON.stringify(CHIPS.map((c,j)=>Number(S.my.counts[j])||0))&&(Number(sub.extra)||0)===(Number(S.my.extra)||0);return same?"done":"changed"}
+function myStatusHtml(){const st=myState();const sub=mySub();
+  if(st==="done"){const t=new Date(sub.updated||0);return `<span class="pos">✓ 반영됨 · ${t.getHours()}:${String(t.getMinutes()).padStart(2,"0")}</span>`}
+  if(st==="changed")return `<span class="neg">반영한 뒤 바뀐 내용이 있어요. 다시 반영하세요</span>`;
+  return `<span class="muted">아직 반영하지 않았어요</span>`}
 function renderCalc(){
   const ns=nets();const totPts=ns.reduce((a,n)=>a+n.pts,0);const totIn=ns.reduce((a,n)=>a+n.inn,0);const diff=totPts-totIn;
-  let h=`<section><div class="spread"><h2>칩 세기</h2><div class="row"><button class="btn" data-act="cadd">+ 사람</button><button class="btn ghost" data-act="creset">전부 지우기</button></div></div>
-    <div class="row small muted">초기금액 <input type="number" min="0" step="1000" inputmode="numeric" id="s-buyin" data-s="buyIn" value="${buyIn()}" style="width:110px">원 · 시작할 때 한 사람이 딜러에게 넣는 돈</div>`;
-  if(S.calc.example)h+=`<div class="notice">10월 비정기모임 결과를 칩으로 옮겨 본 예시예요. 기정은 추가금액 30만원을 넣은 것으로 계산했어요. 실제 게임에서는 <b>전부 지우기</b>를 누르고 입력하세요.</div>`;
-  ns.forEach((n,i)=>{const p=n.p;
-    h+=`<div class="panel player"><div class="row"><input type="text" id="c-n${i}" data-c="name" data-i="${i}" value="${esc(p.name)}" placeholder="이름" list="plist2" style="flex:1">
-      <label class="row small muted">추가금액 <input type="number" min="0" step="10000" inputmode="numeric" id="c-r${i}" data-c="extra" data-i="${i}" value="${p.extra?esc(p.extra):""}" placeholder="0" style="width:100px">원</label>
-      <button class="btn ghost" data-act="crm" data-i="${i}" aria-label="삭제">×</button></div>
-      <div class="counts">${CHIPS.map((ch,j)=>`<label><span class="cname">${ch.name}</span><input type="number" min="0" inputmode="numeric" id="c-${i}-${j}" data-c="count" data-i="${i}" data-j="${j}" value="${p.counts[j]??""}" placeholder="0" aria-label="${ch.name} 칩 개수"></label>`).join("")}</div>
-      <div class="ptotal"><span class="small muted">칩 <span class="num" id="pts${i}">${won(n.pts)}</span> − 넣은 돈 <span class="num" id="inn${i}">${won(n.inn)}</span></span><span class="big ${cls(n.net)}" id="net${i}">${won(n.net,1)}</span></div></div>`});
-  h+=`<datalist id="plist2">${knownPlayers().map(p=>`<option value="${esc(p)}">`).join("")}</datalist>`;
-  h+=`<div id="calc-check" class="${diff===0?"":"notice"} small">${checkText(totPts,totIn,diff)}</div>`;
-  h+=`<div class="row" style="justify-content:flex-end"><button class="btn primary" data-act="csave" ${S.canWrite?"":"disabled"}>이 결과를 게임 기록에 저장</button></div></section>`;
-  h+=`<section><div class="spread"><h2>딜러 정산</h2><label class="row small muted">딜러 <select id="c-dealer" data-dealer="1">${S.calc.players.map(p=>p.name.trim()).filter(Boolean).map(n=>`<option ${n===S.calc.dealer?"selected":""}>${esc(n)}</option>`).join("")}</select></label></div>
-    <p class="small muted" style="margin:0">딜러가 모두의 입금을 받고, 끝나면 각자 남은 칩만큼 돌려줘요.</p><div id="settle">${settleHtml(ns)}</div></section>`;
+  const my=S.my;const myName=(my.name||S.me||"");const myPts=points(my);const myIn=inOf(my);
+  const last=[...S.games].sort((a,b)=>String(b.created||b.date).localeCompare(String(a.created||a.date)))[0];
+  const missing=last?(last.results||[]).map(r=>r.name).filter(n=>!S.chipSubs.some(c=>c.name===n)):[];
+  let h=`<section><div class="row small muted">초기금액 <input type="number" min="0" step="10000" inputmode="numeric" id="s-buyin" data-s="buyIn" value="${buyIn()}" style="width:110px">원 · 시작할 때 한 사람이 딜러에게 넣는 돈 (모두 같은 값)</div></section>`;
+  h+=`<section><h2>내 칩 입력</h2><div class="panel player">
+    <div class="row"><input type="text" id="my-name" data-my="name" value="${esc(myName)}" placeholder="내 이름" list="plist2" style="flex:1;min-width:100px">
+      <label class="row small muted">추가금액 <input type="number" min="0" step="10000" inputmode="numeric" id="my-extra" data-my="extra" value="${my.extra?esc(my.extra):""}" placeholder="0" style="width:100px">원</label></div>
+    <div class="counts">${CHIPS.map((ch,j)=>`<label><span class="cname">${ch.name}</span><input type="number" min="0" inputmode="numeric" id="my-${j}" data-my="count" data-j="${j}" value="${my.counts[j]??""}" placeholder="0" aria-label="${ch.name} 칩 개수"></label>`).join("")}</div>
+    <div class="ptotal"><span class="small muted">칩 <span class="num" id="my-pts">${won(myPts)}</span> − 넣은 돈 <span class="num" id="my-in">${won(myIn)}</span></span><span class="big ${cls(myPts-myIn)}" id="my-net">${won(myPts-myIn,1)}</span></div>
+    <div class="spread"><span class="small" id="my-status">${myStatusHtml()}</span><button class="btn primary" data-act="mysubmit" ${S.db?"":"disabled"}>반영하기</button></div>
+  </div><datalist id="plist2">${knownPlayers().map(p=>`<option value="${esc(p)}">`).join("")}</datalist></section>`;
+  h+=`<section><div class="spread"><h2>모두의 칩</h2><span class="muted small">${ns.length}명 반영</span></div>`;
+  if(!ns.length)h+=`<p class="muted small" style="margin:0">아직 반영한 사람이 없어요. 각자 위에서 칩 개수를 넣고 반영하기를 누르면 여기에 모여요.</p>`;
+  else{
+    h+=`<ol class="settle">${ns.map(n=>{const nm=n.p.name;return `<li><span><b>${esc(nm)}</b><br><span class="small muted">칩 ${won(n.pts)} · 넣은 돈 ${won(n.inn)}</span></span><span class="row" style="gap:6px;flex-wrap:nowrap"><span class="num ${cls(n.net)}" style="font-weight:600">${won(n.net,1)}</span>
+      ${S.confirmChipDel===nm?`<button class="btn danger small" data-act="chipdelyes" data-name="${esc(nm)}">삭제</button><button class="btn small" data-act="chipdelno">취소</button>`:`<button class="btn ghost small" data-act="chipdel" data-name="${esc(nm)}" aria-label="${esc(nm)} 입력 삭제">×</button>`}</span></li>`}).join("")}</ol>`;
+    h+=`<div class="${diff===0?"":"notice"} small">${checkText(totPts,totIn,diff)}</div>`;
+  }
+  if(missing.length)h+=`<p class="small muted" style="margin:0">아직 안 한 사람: ${missing.map(esc).join(", ")}</p>`;
+  h+=`</section>`;
+  if(ns.length){
+    h+=`<section><div class="spread"><h2>딜러 정산</h2><label class="row small muted">딜러 <select id="c-dealer" data-dealer="1">${ns.map(n=>`<option ${n.p.name===S.config.dealer?"selected":""}>${esc(n.p.name)}</option>`).join("")}</select></label></div>
+      <p class="small muted" style="margin:0">딜러가 모두의 입금을 받고, 끝나면 각자 남은 칩만큼 돌려줘요.</p>${settleHtml(ns)}</section>`;
+    h+=`<section>${S.confirmFinish?`<div class="panel" style="display:flex;flex-direction:column;gap:10px"><b>게임 기록에 저장할까요?</b><span class="small muted">${ns.length}명의 결과가 오늘 날짜로 저장되고, 모두의 칩 입력은 비워져요.</span><div class="row" style="justify-content:flex-end"><button class="btn" data-act="finishno">취소</button><button class="btn primary" data-act="finishyes">저장</button></div></div>`
+      :`<div class="row" style="justify-content:flex-end"><button class="btn primary" data-act="finish">게임 끝 · 기록에 저장</button></div>`}</section>`;
+  }
   return h;
 }
 function checkText(totPts,totIn,diff){return diff===0?`칩 합계 <span class="num">${won(totPts)}</span> = 넣은 돈 합계. 딱 맞아요.`:`칩 합계 <span class="num">${won(totPts)}</span>, 넣은 돈 합계 <span class="num">${won(totIn)}</span>. <b class="num">${won(diff,1)}</b> 차이가 나요. 칩 개수나 추가금액을 다시 확인하세요.`}
 function settleHtml(ns){
-  const named=ns.filter(n=>n.p.name.trim());if(!named.length)return `<p class="muted small">이름을 입력하면 정산이 나와요.</p>`;
-  const dealer=S.calc.dealer&&named.some(n=>n.p.name.trim()===S.calc.dealer)?S.calc.dealer:named[0].p.name.trim();
-  const inTot=named.reduce((a,n)=>a+n.inn,0),outTot=named.reduce((a,n)=>a+n.pts,0),left=inTot-outTot;
-  return `<ol class="settle">${named.map(n=>{const nm=n.p.name.trim();const me=nm===dealer;
-    return `<li><span>${esc(nm)}${me?' <span class="small" style="color:var(--gold)">딜러</span>':""}<br><span class="small muted">입금 ${won(n.inn)} · 손익 <span class="${cls(n.net)}">${won(n.net,1)}</span></span></span><span class="num" style="text-align:right">${me?`<span class="small muted">본인 몫</span><br>`:`<span class="small muted">돌려받을 돈</span><br>`}<b>${won(n.pts)}</b></span></li>`}).join("")}</ol>
+  const dealer=ns.some(n=>n.p.name===S.config.dealer)?S.config.dealer:ns[0].p.name;
+  const inTot=ns.reduce((a,n)=>a+n.inn,0),outTot=ns.reduce((a,n)=>a+n.pts,0),left=inTot-outTot;
+  return `<ol class="settle">${ns.map(n=>{const nm=n.p.name;const me=nm===dealer;
+    return `<li><span>${esc(nm)}${me?' <span class="small" style="color:var(--gold)">딜러</span>':""}<br><span class="small muted">입금 ${won(n.inn)}</span></span><span class="num" style="text-align:right"><span class="small muted">${me?"본인 몫":"돌려받을 돈"}</span><br><b>${won(n.pts)}</b></span></li>`}).join("")}</ol>
   <div class="small" style="margin-top:8px">딜러가 받은 돈 <b class="num">${won(inTot)}</b> · 돌려줄 돈 <b class="num">${won(outTot)}</b> · ${left===0?'<span class="pos">남는 돈 없이 딱 맞아요</span>':`<span class="neg">${won(-left,1)} 차이. 칩 개수를 다시 확인하세요</span>`}</div>`;
 }
 let cfgTimer=null,cfgWriting=false,cfgDirty=false;
@@ -365,12 +366,17 @@ async function flushCfg(){
   try{await S.db.doc("config/main").set(JSON.parse(JSON.stringify(S.config)))}catch(e){writeFailed(e)}
   cfgWriting=false;S.cfgLocal=false;if(cfgDirty){cfgDirty=false;flushCfg()}
 }
-function saveCalc(){save("calc5",S.calc)}
+function saveMy(){save("mychip",S.my)}
 function updateCalcNumbers(){
-  const ns=nets();ns.forEach((n,i)=>{const a=document.getElementById("pts"+i),c=document.getElementById("inn"+i),b=document.getElementById("net"+i);if(a)a.textContent=won(n.pts);if(c)c.textContent=won(n.inn);if(b){b.textContent=won(n.net,1);b.className="big "+cls(n.net)}});
-  const totPts=ns.reduce((a,n)=>a+n.pts,0),totIn=ns.reduce((a,n)=>a+n.inn,0),d=totPts-totIn;
-  const ck=document.getElementById("calc-check");if(ck){ck.innerHTML=checkText(totPts,totIn,d);ck.className=(d===0?"":"notice")+" small"}
-  const st=document.getElementById("settle");if(st)st.innerHTML=settleHtml(ns);
+  const my=S.my,p=points(my),i=inOf(my);const a=document.getElementById("my-pts"),b=document.getElementById("my-in"),c=document.getElementById("my-net"),d=document.getElementById("my-status");
+  if(a)a.textContent=won(p);if(b)b.textContent=won(i);if(c){c.textContent=won(p-i,1);c.className="big "+cls(p-i)}if(d)d.innerHTML=myStatusHtml();
+}
+async function submitMine(){
+  const name=(S.my.name||S.me||"").trim();if(!name){toast("이름을 먼저 입력하세요");return}
+  if(!S.db){toast("저장 기능이 연결되지 않았어요");return}
+  S.my.name=name;saveMy();
+  const doc={kind:"chip",name,counts:CHIPS.map((c,j)=>Number(S.my.counts[j])||0),extra:Number(S.my.extra)||0,updated:Date.now()};
+  try{await S.db.doc("config/chip-"+hex(name)).set(doc);toast("반영했어요")}catch(e){writeFailed(e)}
 }
 
 /* ---------- render ---------- */
@@ -400,26 +406,25 @@ document.getElementById("app").addEventListener("click",async e=>{
   else if(a==="del"){S.confirmDel=b.dataset.id;render()}
   else if(a==="delno"){S.confirmDel=null;render()}
   else if(a==="delyes"){try{await S.db.doc("games/"+b.dataset.id).delete();toast("삭제했어요")}catch(err){writeFailed(err)}S.confirmDel=null;render()}
-  else if(a==="cadd"){S.calc.players.push({name:"",extra:0,counts:[]});saveCalc();render()}
-  else if(a==="crm"){S.calc.players.splice(+b.dataset.i,1);saveCalc();render()}
-  else if(a==="creset"){S.calc={example:false,players:S.calc.players.map(p=>({name:S.calc.example?p.name:p.name,extra:0,counts:[]}))};saveCalc();render()}
-  else if(a==="csave"){const ns=nets().filter(n=>n.p.name.trim());if(ns.length<2){toast("두 명 이상 필요해요");return}
-    if(S.calc.example){toast("예시 숫자예요. 실제 칩을 입력한 뒤 저장하세요");return}
-    const ok=await saveGame({date:today(),title:`${new Date().getMonth()+1}월 모임`,note:"",results:ns.map(n=>({name:n.p.name.trim(),amount:r1(n.net/10000)})),created:Date.now()});
-    if(ok){S.tab="stats";render()}}
-  else if(a==="chipadd"){S.config.chips.push({name:"새 칩",color:document.getElementById("s-newcolor").value,value:50});cfgChanged();render()}
-  else if(a==="chiprm"){const j=+b.dataset.j;S.config.chips.splice(j,1);S.calc.players.forEach(p=>p.counts.splice(j,1));saveCalc();cfgChanged();render()}
+  else if(a==="mysubmit")submitMine();
+  else if(a==="chipdel"){S.confirmChipDel=b.dataset.name;render()}
+  else if(a==="chipdelno"){S.confirmChipDel=null;render()}
+  else if(a==="chipdelyes"){try{await S.db.doc("config/chip-"+hex(b.dataset.name)).delete();toast("삭제했어요")}catch(err){writeFailed(err)}S.confirmChipDel=null;render()}
+  else if(a==="finish"){S.confirmFinish=true;render()}
+  else if(a==="finishno"){S.confirmFinish=false;render()}
+  else if(a==="finishyes"){const ns=nets();if(ns.length<2){toast("두 명 이상 반영해야 저장할 수 있어요");return}
+    const ok=await saveGame({date:today(),title:`${new Date().getMonth()+1}월 모임`,note:"",results:ns.map(n=>({name:n.p.name,amount:r1(n.net/10000)})),created:Date.now()});
+    if(ok){try{const batch=S.db.batch();ns.forEach(n=>batch.delete(S.db.doc("config/chip-"+hex(n.p.name))));await batch.commit()}catch(err){}
+      S.my={name:S.my.name,counts:[],extra:0};saveMy();S.confirmFinish=false;S.tab="stats";render()}}
 });
 function readForm(){const f=S.form;if(!f)return;f.date=document.getElementById("f-date").value;f.title=document.getElementById("f-title").value;f.note=document.getElementById("f-note").value;
   document.querySelectorAll("[data-f]").forEach(el=>{f.rows[+el.dataset.i][el.dataset.f]=el.value})}
 document.getElementById("app").addEventListener("input",e=>{
   const el=e.target;
   if(el.dataset.f&&S.form){S.form.rows[+el.dataset.i][el.dataset.f]=el.value;const sum=S.form.rows.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);const s=document.getElementById("f-sum");if(s){s.className="sumline "+(Math.abs(sum)<0.05?"pos":"neg");s.innerHTML=`합계 <span class="num">${fmt(sum)}</span>${Math.abs(sum)<0.05?" · 딱 맞아요":" · 합이 0이 아니에요"}`}}
-  else if(el.dataset.c){const p=S.calc.players[+el.dataset.i];if(el.dataset.c==="name")p.name=el.value;else if(el.dataset.c==="extra")p.extra=Math.max(0,parseInt(el.value)||0);else p.counts[+el.dataset.j]=el.value===""?"":Math.max(0,parseInt(el.value)||0);
-    if(S.calc.example&&el.dataset.c!=="name")S.calc.example=false;saveCalc();updateCalcNumbers()}
-  else if(el.dataset.dealer){S.calc.dealer=el.value;saveCalc();updateCalcNumbers()}
+  else if(el.dataset.my){const k=el.dataset.my;if(k==="name")S.my.name=el.value;else if(k==="extra")S.my.extra=Math.max(0,parseInt(el.value)||0);else S.my.counts[+el.dataset.j]=el.value===""?"":Math.max(0,parseInt(el.value)||0);saveMy();updateCalcNumbers()}
+  else if(el.dataset.dealer){S.config.dealer=el.value;cfgChanged();render()}
   else if(el.dataset.s){const k=el.dataset.s;S.config[k]=k==="unit"?el.value:Math.max(0,parseFloat(el.value)||0);cfgChanged();updateCalcNumbers()}
-  else if(el.dataset.chip){const ch=S.config.chips[+el.dataset.j];if(el.dataset.chip==="name")ch.name=el.value;else ch.value=Math.max(0,parseFloat(el.value)||0);cfgChanged();updateCalcNumbers()}
 });
 
 /* ---------- data ---------- */
@@ -441,6 +446,8 @@ const SEED={date:"2026-10",title:"10월 비정기모임",note:"☆ 필규 첫 1�
     S.games=snap.docs.map(d=>({id:d.id,...d.data()}));if(!(document.activeElement&&document.activeElement.matches("input")))render()},e=>{console.error(e);toast("데이터를 불러오지 못했어요. Firestore 규칙을 확인하세요")});
   db.doc("config/main").onSnapshot(snap=>{if(snap.exists&&!S.cfgLocal){const d=snap.data();S.config={...DEFAULT_CONFIG,...JSON.parse(JSON.stringify(d))};
     if(!(S.tab==="calc"&&document.activeElement&&document.activeElement.matches("input")))render()}},()=>{});
+  db.collection("config").where("kind","==","chip").onSnapshot(snap=>{S.chipSubs=snap.docs.map(d=>d.data());
+    if(S.tab==="calc"){if(document.activeElement&&document.activeElement.matches("#app input"))updateCalcNumbers();else render()}},()=>{});
   subAvail();render();
 })();
 // clear timer flag after flush
