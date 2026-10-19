@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#1d5a41">
+<meta name="theme-color" content="#120d08">
 <script src="firebase-config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -12,20 +12,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
-/* Layout: one narrow column (max 640px) under a sticky felt-green tab bar; each tab is a stack of plain sections, cards only where an item is a separate object. */
+/* Layout: one narrow column (max 640px) under a sticky dark studio header; dark-only "game show" look — black stage, bronze glow, metallic gold for titles and primary actions. */
 :root{
-  --bg:#f2f4f0; --surface:#ffffff; --sunk:#e8ece6; --ink:#16201a; --muted:#5b6a61; --line:#d6ddd6;
-  --felt:#1d5a41; --felt-ink:#f4f8f5; --pos:#1c7546; --neg:#b2392a; --gold:#a97b1c; --gold-bg:#f6ecd4;
+  --bg:#0a0806; --surface:#17110c; --sunk:#0f0b08; --ink:#f1e6d2; --muted:#a8977c; --line:#3a2d1e;
+  --felt:#120d08; --felt-ink:#f5e7c8; --pos:#f0c35e; --neg:#e3685a; --gold:#dcaa4f; --gold-bg:#211810; --on-gold:#1a1206;
+  --plus:#e8b04b; --minus:#d0573f;
+  --metal:linear-gradient(180deg,#fff4d6 0%,#f0cf86 32%,#b9822f 58%,#f3d48d 78%,#8a5a1f 100%);
+  --metal-btn:linear-gradient(180deg,#f6dc97 0%,#d29a3d 52%,#9c6a24 100%);
   --f-display:"Black Han Sans","IBM Plex Sans KR","Apple SD Gothic Neo",sans-serif;
   --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
   --f-num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  color-scheme:dark;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0e1411; --surface:#16201b; --sunk:#111915; --ink:#e6ece8; --muted:#97a69d; --line:#2a3631;
-  --felt:#1a4a36; --felt-ink:#e9f3ee; --pos:#56c48a; --neg:#ec7563; --gold:#e0b55a; --gold-bg:#2e2615; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0e1411; --surface:#16201b; --sunk:#111915; --ink:#e6ece8; --muted:#97a69d; --line:#2a3631;
-  --felt:#1a4a36; --felt-ink:#e9f3ee; --pos:#56c48a; --neg:#ec7563; --gold:#e0b55a; --gold-bg:#2e2615; color-scheme:dark}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--felt)}
 *{box-sizing:border-box}
@@ -140,7 +138,25 @@ td:first-child{font-family:var(--f-body);font-weight:500}
 .game li .n{display:flex;gap:6px}
 .game li .n em{font-style:normal;font-family:var(--f-num);color:var(--muted);font-size:12px}
 .crown{color:var(--gold)}
-.formrow{display:grid;grid-template-columns:1fr 110px 36px;gap:6px}
+.formrow{display:grid;grid-template-columns:minmax(0,1fr) auto 40px 36px;gap:6px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:7px 10px;font-size:13px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--gold);color:var(--on-gold)}
+.topbtn{border:1px solid var(--line);background:var(--surface);border-radius:8px;height:36px;cursor:pointer;color:var(--muted)}
+.topbtn[aria-pressed="true"]{color:var(--gold);border-color:var(--gold)}
+.legendbox{background:var(--gold-bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center}
+.dot{display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:-2px;flex:none}
+.dot.f{background:var(--plus)} .dot.e{border:2px solid var(--minus)}
+.dot.none{border:2px dashed var(--line)}
+.dot.big{width:18px;height:18px}
+.flow{display:flex;flex-direction:column}
+.frow{display:grid;grid-template-columns:72px 1fr;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.frow:last-child{border-bottom:0}
+.dots5{display:flex;gap:10px}
+.axis{display:grid;grid-template-columns:72px 1fr;font-size:11px;color:var(--muted)}
+.axis>span:last-child{display:flex;justify-content:space-between;width:130px;white-space:nowrap}
+.gres{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px}
+.gres>span{display:inline-flex;gap:5px;align-items:center}
 .sumline{font-size:13px}
 
 /* chips */
@@ -173,6 +189,56 @@ td:first-child{font-family:var(--f-body);font-weight:500}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:20}
 @media (max-width:420px){.settings{grid-template-columns:1fr}.game ol{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:no-preference){.cell,.chip,.btn{transition:background .15s,border-color .15s}}
+/* ---- studio theme overrides ---- */
+body{background:radial-gradient(120% 55% at 50% -8%,rgba(214,134,40,.30),transparent 62%),radial-gradient(90% 40% at 50% 112%,rgba(150,64,22,.20),transparent 70%),var(--bg);background-attachment:fixed;min-height:100vh}
+header{background:linear-gradient(180deg,#140e08 0%,rgba(16,11,7,.94) 100%);border-bottom:1px solid rgba(220,170,79,.38);box-shadow:0 10px 30px rgba(0,0,0,.65)}
+.brand h1{background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:28px;letter-spacing:.05em;filter:drop-shadow(0 2px 8px rgba(240,160,60,.35))}
+.suits{color:var(--gold);opacity:1}
+.tab{color:#c9b691;opacity:1;letter-spacing:.06em}
+.tab[aria-selected="true"]{color:#ffe7b0;border-bottom-color:var(--gold);text-shadow:0 0 14px rgba(240,180,80,.65)}
+h2{font-family:var(--f-display);font-weight:400;font-size:20px;letter-spacing:.04em;color:#ecc87e}
+.panel{background:linear-gradient(180deg,#1c150e,#120d09);border:1px solid rgba(220,170,79,.28);box-shadow:0 12px 30px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,220,160,.07)}
+.btn{background:#1b140e;border-color:#4b3922;color:var(--ink)}
+.btn:hover{border-color:var(--gold)}
+.btn.primary{background:var(--metal-btn);border-color:#e6b864;color:var(--on-gold);font-weight:700;box-shadow:0 4px 18px rgba(220,150,50,.35);text-shadow:0 1px 0 rgba(255,240,200,.4)}
+.btn.ghost{background:transparent}
+input[type=text],input[type=number],input[type=date],input[type=url],select{background:#0e0a07;border-color:#4b3922}
+.notice{background:rgba(220,170,79,.12);border:1px solid rgba(220,170,79,.3)}
+.mebtn{background:rgba(220,170,79,.12);border-color:rgba(220,170,79,.5);color:#f5dca3}
+.toast{background:var(--metal-btn);color:var(--on-gold);font-weight:700;box-shadow:0 6px 24px rgba(0,0,0,.6)}
+.monthnav .label{background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent}
+button.cell{background:#16100b;border-color:#3a2d1e}
+button.cell.best{background:rgba(220,170,79,.16);border-color:var(--gold)}
+button.cell.mine{border-color:var(--gold);box-shadow:inset 0 0 0 2px var(--gold)}
+button.cell.mine .d::after{color:var(--gold)}
+.dots i{background:var(--gold)}
+button.cell.fixed{background:var(--metal-btn);border-color:#f0c56c;box-shadow:0 0 18px rgba(230,160,60,.45)}
+button.cell.fixed .d,button.cell.fixed .cnt{color:var(--on-gold)!important}
+button.cell.fixed .fixtag{color:#5a3a10}
+button.cell.fixed .dots i{background:#5a3a10}
+.legend b{border-color:var(--gold)!important}
+.ann{background:radial-gradient(120% 120% at 0% 0%,rgba(230,150,50,.25),transparent 55%),linear-gradient(135deg,#2a1c0e,#120c07);border:1px solid rgba(220,170,79,.55);box-shadow:0 14px 40px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,220,160,.1)}
+.ann .when{background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ann .when small{-webkit-text-fill-color:#e8d3a8}
+.ann .eb{color:var(--gold);opacity:1}
+.ann .acts a,.ann .acts button{background:rgba(220,170,79,.12);border-color:rgba(220,170,79,.45);color:#f5dca3}
+.ann.empty{background:rgba(23,17,12,.7);border:1px dashed rgba(220,170,79,.4)}
+.modal{background:rgba(0,0,0,.7)}
+.modal .box{background:linear-gradient(180deg,#1f170f,#110c08);border:1px solid rgba(220,170,79,.5);box-shadow:0 20px 60px rgba(0,0,0,.7)}
+.modal h2{background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:26px}
+.whogrid button{background:#16100b;border-color:#4b3922;color:var(--ink)}
+.whogrid button:hover{border-color:var(--gold)}
+.whogrid button[aria-pressed="true"]{background:var(--metal-btn);color:var(--on-gold);border-color:#e6b864}
+.counts label{background:#0e0a07;border:1px solid #2e2317}
+.dot.f{background:radial-gradient(circle at 35% 30%,#ffe7a6,#e8b04b 45%,#a36d1f);box-shadow:0 0 8px rgba(232,176,75,.55)}
+.crown{color:#f3c96a;text-shadow:0 0 8px rgba(240,190,90,.6)}
+.legendbox{background:rgba(220,170,79,.08);border-color:rgba(220,170,79,.3)}
+.brand{flex-wrap:nowrap;align-items:center}
+.brand h1{font-size:clamp(21px,6.4vw,28px);white-space:nowrap}
+.mebtn{white-space:nowrap;flex:none}
+@media (max-width:380px){.suits{display:none}}
+.cal .dow.sat,button.cell.sat .d{color:#d9c9a3}
+.cal .dow.sun,button.cell.sun .d{color:#ef8a76}
 </style>
 
 </head>
@@ -320,49 +386,48 @@ function writeFailed(e){
 }
 
 /* ---------- stats ---------- */
-function stats(){
-  const p={};
-  const games=[...S.games].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-  games.forEach(g=>{const rs=[...(g.results||[])].sort((a,b)=>b.amount-a.amount);
-    rs.forEach((r,i)=>{const o=p[r.name]||(p[r.name]={name:r.name,total:0,n:0,wins:0,best:-Infinity,worst:Infinity,plus:0});
-      o.total+=r.amount;o.n++;if(i===0)o.wins++;if(r.amount>0)o.plus++;o.best=Math.max(o.best,r.amount);o.worst=Math.min(o.worst,r.amount)})});
-  return Object.values(p).sort((a,b)=>b.total-a.total);
-}
+function normResults(rs){rs=rs||[];if(rs.every(r=>typeof r.win==="boolean"))return rs;
+  const max=Math.max(...rs.map(r=>Number(r.amount)||0));
+  return rs.map(r=>typeof r.win==="boolean"?r:{name:r.name,win:(Number(r.amount)||0)>0,top:(Number(r.amount)||0)===max&&max>0})}
+function orderRes(rs){return [...normResults(rs)].sort((a,b)=>(b.top?1:0)-(a.top?1:0)||(b.win?1:0)-(a.win?1:0)||a.name.localeCompare(b.name,"ko"))}
+function gameKey(g){return String(g.date||"")+"|"+String(g.created||0)}
+function dotHtml(c,big){return `<span class="dot ${c===true?"f":c===false?"e":"none"}${big?" big":""}"></span>`}
 function renderStats(){
-  const st=stats();const games=[...S.games].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-  const maxAbs=Math.max(1,...st.map(s=>Math.abs(s.total)));
-  let h=`<section><div class="spread"><h2>누적 순위</h2><span class="muted small">단위 만원 · ${games.length}판 기록</span></div>`;
-  if(!st.length)h+=`<p class="muted small">기록이 없어요. 아래에서 첫 게임 결과를 추가하세요.</p>`;
+  const asc=[...S.games].sort((a,b)=>gameKey(a).localeCompare(gameKey(b)));const games=[...asc].reverse();
+  const hist={};asc.forEach(g=>normResults(g.results).forEach(r=>{(hist[r.name]=hist[r.name]||[]).push(r.win)}));
+  const names=knownPlayers().filter(n=>hist[n]);Object.keys(hist).forEach(n=>{if(!names.includes(n))names.push(n)});
+  let h=`<section><div class="spread"><h2>최근 흐름</h2><span class="muted small">최근 5판</span></div>
+    <div class="legendbox"><span>${dotHtml(true)} 속이 찬 동그라미는 <b>+</b></span><span>${dotHtml(false)} 빈 동그라미는 <b>−</b> 입니다</span><span class="muted">오른쪽이 가장 최근 판이에요</span></div>`;
+  if(!names.length)h+=`<p class="muted small" style="margin:0">아직 기록이 없어요. 게임이 끝나면 칩 계산 탭에서 저장하거나 아래에서 결과를 추가하세요.</p>`;
   else{
-    h+=`<div class="board">${st.map((s,i)=>{const w=Math.abs(s.total)/maxAbs*50;const left=s.total>=0?50:50-w;
-      return `<div class="brow"><span class="rank">${i+1}</span><b>${esc(s.name)}</b>
-        <span class="bar"><i style="left:${left}%;width:${w}%;background:var(--${s.total>=0?"pos":"neg"})"></i></span>
-        <span class="amt ${cls(s.total)}">${fmt(s.total)}</span></div>`}).join("")}</div>
-      <div class="tablewrap"><table><thead><tr><th>이름</th><th>참가</th><th>1등</th><th>플러스</th><th>평균</th><th>최고</th><th>최저</th></tr></thead><tbody>
-      ${st.map(s=>`<tr><td>${esc(s.name)}</td><td>${s.n}</td><td>${s.wins||"·"}</td><td>${Math.round(s.plus/s.n*100)}%</td><td class="${cls(s.total/s.n)}">${fmt(s.total/s.n)}</td><td class="${cls(s.best)}">${fmt(s.best)}</td><td class="${cls(s.worst)}">${fmt(s.worst)}</td></tr>`).join("")}
-      </tbody></table></div>`;
+    h+=`<div class="flow">${names.map(n=>{const last=hist[n].slice(-5);const pad=Array(5-last.length).fill(null);
+      return `<div class="frow"><b>${esc(n)}</b><span class="dots5">${[...pad,...last].map(c=>dotHtml(c,1)).join("")}</span></div>`}).join("")}</div>
+      <div class="axis"><span></span><span><span>← 예전</span><span>최근 →</span></span></div>`;
   }
   h+=`</section>`;
   h+=`<section><div class="spread"><h2>게임별 결과</h2>${S.form?"":`<button class="btn primary" data-act="newgame" ${S.canWrite?"":"disabled"}>결과 추가</button>`}</div>`;
   if(S.form)h+=renderForm();
-  games.forEach(g=>{const rs=[...(g.results||[])].sort((a,b)=>b.amount-a.amount);
+  games.forEach(g=>{const rs=orderRes(g.results);
     h+=`<div class="panel game"><div class="spread"><div><b>${esc(g.title||"모임")}</b> <span class="muted small num">${esc(g.date||"")}</span></div>
       ${S.confirmDel===g.id?`<div class="row"><span class="small">삭제할까요?</span><button class="btn danger" data-act="delyes" data-id="${g.id}">삭제</button><button class="btn" data-act="delno">취소</button></div>`
       :(S.canWrite?`<button class="btn ghost small" data-act="del" data-id="${g.id}" aria-label="이 기록 삭제">삭제</button>`:"")}</div>
       ${g.note?`<div class="small" style="color:var(--gold)">${esc(g.note)}</div>`:""}
-      <ol>${rs.map((r,i)=>`<li><span class="n"><em>${i+1}</em>${i===0?'<span class="crown">♛</span>':""}${esc(r.name)}</span><span class="num ${cls(r.amount)}">${fmt(r.amount)}</span></li>`).join("")}</ol></div>`});
-  h+=`</section>`;
+      <div class="gres">${rs.map(r=>`<span>${r.top?'<span class="crown">♛</span>':""}${esc(r.name)} ${dotHtml(r.win)}</span>`).join("")}</div></div>`});
+  h+=`<p class="small muted" style="margin:0">금액은 저장하지 않아요. 그날 정산은 칩 계산 탭에서만 보여요.</p></section>`;
   return h;
 }
 function renderForm(){
-  const f=S.form;const sum=f.rows.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+  const f=S.form;
   return `<div class="panel" style="display:flex;flex-direction:column;gap:10px">
     <div class="row"><input type="date" id="f-date" value="${esc(f.date)}"><input type="text" id="f-title" value="${esc(f.title)}" placeholder="모임 이름" style="flex:1"></div>
     <input type="text" id="f-note" value="${esc(f.note)}" placeholder="메모 (선택)">
-    ${f.rows.map((r,i)=>`<div class="formrow"><input type="text" id="f-n${i}" data-f="name" data-i="${i}" value="${esc(r.name)}" placeholder="이름" list="plist"><input type="number" step="0.1" inputmode="decimal" id="f-a${i}" data-f="amount" data-i="${i}" value="${esc(r.amount)}" placeholder="+/−"><button class="btn ghost" data-act="frm" data-i="${i}" aria-label="행 삭제">×</button></div>`).join("")}
+    <div class="small muted">각자 땄으면 ●, 잃었으면 ○ 를 고르고, 1등에게 ♛ 를 눌러주세요.</div>
+    ${f.rows.map((r,i)=>`<div class="formrow"><input type="text" id="f-n${i}" data-f="name" data-i="${i}" value="${esc(r.name)}" placeholder="이름" list="plist">
+      <span class="seg"><button type="button" data-act="fwin" data-i="${i}" data-v="1" aria-pressed="${r.win===true}">● +</button><button type="button" data-act="fwin" data-i="${i}" data-v="0" aria-pressed="${r.win===false}">○ −</button></span>
+      <button type="button" class="topbtn" data-act="ftop" data-i="${i}" aria-pressed="${!!r.top}" aria-label="1등">♛</button>
+      <button class="btn ghost" data-act="frm" data-i="${i}" aria-label="행 삭제">×</button></div>`).join("")}
     <datalist id="plist">${knownPlayers().map(p=>`<option value="${esc(p)}">`).join("")}</datalist>
-    <div class="spread"><button class="btn" data-act="fadd">+ 사람 추가</button>
-      <span class="sumline ${Math.abs(sum)<0.05?"pos":"neg"}" id="f-sum">합계 <span class="num">${fmt(sum)}</span>${Math.abs(sum)<0.05?" · 딱 맞아요":" · 합이 0이 아니에요"}</span></div>
+    <div class="spread"><button class="btn" data-act="fadd">+ 사람 추가</button></div>
     <div class="row" style="justify-content:flex-end"><button class="btn" data-act="fcancel">취소</button><button class="btn primary" data-act="fsave">저장</button></div>
   </div>`;
 }
@@ -447,7 +512,7 @@ async function submitMine(){
 S.whoOpen=false;
 function renderWho(){
   const m=document.getElementById("whoModal");const show=S.whoOpen||!S.me;m.hidden=!show;
-  const btn=document.getElementById("meBtn");btn.hidden=!S.me;btn.textContent=S.me?`나: ${S.me} · 바꾸기`:"";
+  const btn=document.getElementById("meBtn");btn.hidden=!S.me;btn.textContent=S.me?`${S.me} ▾`:"";btn.setAttribute("aria-label",S.me?`${S.me}, 이름 바꾸기`:"");
   if(!show)return;
   m.innerHTML=`<div class="box"><div><h2 id="whoTitle">누구세요?</h2><p class="small muted" style="margin:4px 0 0">이 폰에서 쓸 이름을 골라주세요. 한 번 고르면 기억해요.</p></div>
     <div class="whogrid">${knownPlayers().map(p=>`<button type="button" data-who="${esc(p)}" aria-pressed="${p===S.me}">${esc(p)}</button>`).join("")}</div>
@@ -483,12 +548,14 @@ document.getElementById("app").addEventListener("click",async e=>{
   else if(a==="meetsave")saveMeet();
   else if(a==="meetclear"){try{await S.db.doc("config/meet").delete();S.meet=null;S.meetEdit=null;render();toast("공지를 내렸어요")}catch(err){writeFailed(err)}}
   else if(a==="meetcopy"){const t=S.meet&&S.meet.address||"";try{await navigator.clipboard.writeText(t);toast("주소를 복사했어요")}catch(err){toast(t)}}
-  else if(a==="newgame"){const ps=knownPlayers().slice(0,6);S.form={date:today(),title:`${new Date().getMonth()+1}월 모임`,note:"",rows:(ps.length?ps:["",""]).map(n=>({name:n,amount:""}))};render()}
-  else if(a==="fadd"){readForm();S.form.rows.push({name:"",amount:""});render()}
+  else if(a==="newgame"){const ps=knownPlayers().slice(0,6);S.form={date:today(),title:`${new Date().getMonth()+1}월 모임`,note:"",rows:(ps.length?ps:["",""]).map(n=>({name:n,win:null,top:false}))};render()}
+  else if(a==="fadd"){readForm();S.form.rows.push({name:"",win:null,top:false});render()}
   else if(a==="frm"){readForm();S.form.rows.splice(+b.dataset.i,1);render()}
   else if(a==="fcancel"){S.form=null;render()}
-  else if(a==="fsave"){readForm();const f=S.form;const rows=f.rows.filter(r=>r.name.trim()&&r.amount!=="").map(r=>({name:r.name.trim(),amount:r1(parseFloat(r.amount))}));
-    if(rows.length<2){toast("두 명 이상 입력하세요");return}
+  else if(a==="fwin"){readForm();S.form.rows[+b.dataset.i].win=b.dataset.v==="1";render()}
+  else if(a==="ftop"){readForm();const r=S.form.rows[+b.dataset.i];const on=!r.top;S.form.rows.forEach(x=>x.top=false);r.top=on;if(on)r.win=true;render()}
+  else if(a==="fsave"){readForm();const f=S.form;const rows=f.rows.filter(r=>r.name.trim()&&typeof r.win==="boolean").map(r=>({name:r.name.trim(),win:r.win,top:!!r.top}));
+    if(rows.length<2){toast("두 명 이상 ●/○ 를 골라주세요");return}
     if(await saveGame({date:f.date,title:f.title.trim()||"모임",note:f.note.trim(),results:rows,created:Date.now()})){S.form=null;render()}}
   else if(a==="del"){S.confirmDel=b.dataset.id;render()}
   else if(a==="delno"){S.confirmDel=null;render()}
@@ -500,7 +567,7 @@ document.getElementById("app").addEventListener("click",async e=>{
   else if(a==="finish"){S.confirmFinish=true;render()}
   else if(a==="finishno"){S.confirmFinish=false;render()}
   else if(a==="finishyes"){const ns=nets();if(ns.length<2){toast("두 명 이상 반영해야 저장할 수 있어요");return}
-    const ok=await saveGame({date:today(),title:`${new Date().getMonth()+1}월 모임`,note:"",results:ns.map(n=>({name:n.p.name,amount:r1(n.net/10000)})),created:Date.now()});
+    const ok=await saveGame({date:today(),title:`${new Date().getMonth()+1}월 모임`,note:"",results:ns.map(n=>({name:n.p.name,win:n.net>0,top:n.net>0&&n.net===ns[0].net})),created:Date.now()});
     if(ok){try{const batch=S.db.batch();ns.forEach(n=>batch.delete(S.db.doc("config/chip-"+hex(n.p.name))));await batch.commit()}catch(err){}
       S.my={name:S.my.name,counts:[],extra:0};saveMy();S.confirmFinish=false;S.tab="stats";render()}}
 });
@@ -508,7 +575,7 @@ function readForm(){const f=S.form;if(!f)return;f.date=document.getElementById("
   document.querySelectorAll("[data-f]").forEach(el=>{f.rows[+el.dataset.i][el.dataset.f]=el.value})}
 document.getElementById("app").addEventListener("input",e=>{
   const el=e.target;
-  if(el.dataset.f&&S.form){S.form.rows[+el.dataset.i][el.dataset.f]=el.value;const sum=S.form.rows.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);const s=document.getElementById("f-sum");if(s){s.className="sumline "+(Math.abs(sum)<0.05?"pos":"neg");s.innerHTML=`합계 <span class="num">${fmt(sum)}</span>${Math.abs(sum)<0.05?" · 딱 맞아요":" · 합이 0이 아니에요"}`}}
+  if(el.dataset.f&&S.form){S.form.rows[+el.dataset.i][el.dataset.f]=el.value}
   else if(el.dataset.my){const k=el.dataset.my;if(k==="name")S.my.name=el.value;else if(k==="extra")S.my.extra=Math.max(0,parseInt(el.value)||0);else S.my.counts[+el.dataset.j]=el.value===""?"":Math.max(0,parseInt(el.value)||0);saveMy();updateCalcNumbers()}
   else if(el.dataset.dealer){S.config.dealer=el.value;cfgChanged();render()}
   else if(el.dataset.s){const k=el.dataset.s;S.config[k]=k==="unit"?el.value:Math.max(0,parseFloat(el.value)||0);cfgChanged();updateCalcNumbers()}
@@ -522,7 +589,7 @@ function subAvail(){if(!S.db)return;if(unAvail)unAvail();
     if(S.localSlots&&!slotWriting&&!slotTimer&&mineSrv&&JSON.stringify(mineSrv.slots)===JSON.stringify(S.localSlots.slots))S.localSlots=null;
     if(S.tab==="sched"&&!(document.activeElement&&document.activeElement.matches("#app input")))render()},()=>{})}
 S.tab=load("tab","sched");
-const SEED={date:"2026-10",title:"10월 비정기모임",note:"☆ 필규 첫 1등 축하 ☆",created:1792240000000,results:[{name:"필규",amount:47.8},{name:"승구",amount:26.1},{name:"시즈",amount:13.9},{name:"안테",amount:-20.8},{name:"지수",amount:-27},{name:"기정",amount:-40}]};
+const SEED={date:"2026-10",title:"10월 비정기모임",note:"☆ 필규 첫 1등 축하 ☆",created:1792240000000,results:[{name:"필규",win:true,top:true},{name:"승구",win:true,top:false},{name:"시즈",win:true,top:false},{name:"안테",win:false,top:false},{name:"지수",win:false,top:false},{name:"기정",win:false,top:false}]};
 (function start(){
   const cfg=window.FIREBASE_CONFIG;S.dbReady=true;
   if(!window.firebase||!cfg||!cfg.projectId||String(cfg.apiKey).includes("여기에")){S.db=null;S.canWrite=false;render();return}
@@ -530,6 +597,7 @@ const SEED={date:"2026-10",title:"10월 비정기모임",note:"☆ 필규 첫 1�
   const db=S.db;let seeded=false;
   db.collection("games").onSnapshot(snap=>{
     if(snap.empty&&!snap.metadata.fromCache&&!seeded){seeded=true;db.doc("games/g-2026-10-irregular").set(SEED).catch(()=>{})}
+    snap.docs.forEach(d=>{const g=d.data();if((g.results||[]).some(r=>"amount" in r)){db.doc("games/"+d.id).set({...g,results:normResults(g.results).map(r=>({name:r.name,win:r.win,top:!!r.top}))}).catch(()=>{})}});
     S.games=snap.docs.map(d=>({id:d.id,...d.data()}));if(!(document.activeElement&&document.activeElement.matches("input")))render()},e=>{console.error(e);toast("데이터를 불러오지 못했어요. Firestore 규칙을 확인하세요")});
   db.doc("config/main").onSnapshot(snap=>{if(snap.exists&&!S.cfgLocal){const d=snap.data();S.config={...DEFAULT_CONFIG,...JSON.parse(JSON.stringify(d))};
     if(!(S.tab==="calc"&&document.activeElement&&document.activeElement.matches("input")))render()}},()=>{});
