@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d5a41">
+<script>
+/* ▼▼▼ Firebase 콘솔에서 복사한 설정값을 여기에 붙여넣으세요 ▼▼▼ */
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDXl-YxaUUg-0LtLzViHne04C5rkBZHgRE",
+  authDomain: "poker-meetup.firebaseapp.com",
+  projectId: "poker-meetup",
+  storageBucket: "poker-meetup.firebasestorage.app",
+  messagingSenderId: "672250408504",
+  appId: "1:672250408504:web:6a43220a68693c2693c0cd"
+};
+/* ▲▲▲ 여기까지 ▲▲▲ */
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>우리 포커 모임</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one narrow column (max 640px) under a sticky felt-green tab bar; each tab is a stack of plain sections, cards only where an item is a separate object. */
+:root{
+  --bg:#f2f4f0; --surface:#ffffff; --sunk:#e8ece6; --ink:#16201a; --muted:#5b6a61; --line:#d6ddd6;
+  --felt:#1d5a41; --felt-ink:#f4f8f5; --pos:#1c7546; --neg:#b2392a; --gold:#a97b1c; --gold-bg:#f6ecd4;
+  --f-display:"Black Han Sans","IBM Plex Sans KR","Apple SD Gothic Neo",sans-serif;
+  --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1411; --surface:#16201b; --sunk:#111915; --ink:#e6ece8; --muted:#97a69d; --line:#2a3631;
+  --felt:#1a4a36; --felt-ink:#e9f3ee; --pos:#56c48a; --neg:#ec7563; --gold:#e0b55a; --gold-bg:#2e2615; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1411; --surface:#16201b; --sunk:#111915; --ink:#e6ece8; --muted:#97a69d; --line:#2a3631;
+  --felt:#1a4a36; --felt-ink:#e9f3ee; --pos:#56c48a; --neg:#ec7563; --gold:#e0b55a; --gold-bg:#2e2615; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--felt)}
+*{box-sizing:border-box}
+button,input,select{font:inherit;color:inherit}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--felt);color:var(--felt-ink)}
+.hwrap,.main{max-width:640px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.hwrap{padding-block:12px 0}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{font-family:var(--f-display);font-weight:400;font-size:24px;margin:0;letter-spacing:.01em}
+.suits{font-size:13px;opacity:.75;letter-spacing:.3em}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);margin-top:10px}
+.tab{background:none;border:0;padding:10px 4px 12px;color:var(--felt-ink);opacity:.65;font-weight:500;border-bottom:3px solid transparent;cursor:pointer}
+.tab[aria-selected="true"]{opacity:1;border-bottom-color:var(--gold)}
+.tab:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
+.main{padding-block:20px 48px;display:flex;flex-direction:column;gap:24px}
+section{display:flex;flex-direction:column;gap:12px;min-width:0}
+h2{font-size:17px;margin:0;text-wrap:balance}
+.eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.spread{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:500}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--felt);border-color:var(--felt);color:var(--felt-ink)}
+.btn.ghost{background:none}
+.btn.danger{color:var(--neg)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,select:focus-visible,.slot:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+input[type=text],input[type=number],input[type=date],select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;min-width:0}
+.notice{background:var(--gold-bg);border-radius:8px;padding:10px 12px;font-size:13px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+
+/* schedule */
+.monthnav{display:flex;align-items:center;gap:6px}
+.monthnav .label{font-family:var(--f-display);font-size:22px;min-width:120px;text-align:center}
+.who{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:14px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal .dow{font-size:12px;text-align:center;color:var(--muted);padding-bottom:2px}
+.cal .dow.sun{color:var(--neg)} .cal .dow.sat{color:#2c5aa0}
+.cell{min-height:64px;border-radius:8px;padding:5px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+.cell .d{font-family:var(--f-num);font-size:13px;line-height:1}
+.cell.wd{color:var(--muted);opacity:.55}
+.cell.blank{visibility:hidden}
+button.cell{border:1px solid var(--line);background:var(--surface);cursor:pointer}
+button.cell.sun .d{color:var(--neg)} button.cell.sat .d{color:#2c5aa0}
+button.cell .cnt{font-family:var(--f-num);font-weight:600;font-size:18px;line-height:1.1}
+button.cell .cnt.zero{color:var(--line)}
+.dots{display:flex;flex-wrap:wrap;justify-content:center;gap:2px;max-width:100%}
+.dots i{width:5px;height:5px;border-radius:50%;background:var(--felt)}
+button.cell.mine{border-color:var(--felt);box-shadow:inset 0 0 0 2px var(--felt)}
+button.cell.mine .d::after{content:" ✓";color:var(--felt);font-weight:700}
+button.cell.best{background:var(--gold-bg);border-color:var(--gold)}
+button.cell.past{opacity:.6}
+button.cell:disabled{cursor:default}
+button.cell:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend b{display:inline-block;width:12px;height:12px;border-radius:3px}
+.daylist{margin:0;padding:0;list-style:none}
+.daylist li{display:grid;grid-template-columns:76px 1fr 32px;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.daylist li:last-child{border-bottom:0}
+.top3{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.top3 li{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.top3 li:last-child{border-bottom:0}
+
+/* stats */
+.board{display:flex;flex-direction:column}
+.brow{display:grid;grid-template-columns:28px minmax(52px,72px) 1fr 70px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.brow:last-child{border-bottom:0}
+.rank{font-family:var(--f-num);color:var(--muted);font-size:13px}
+.bar{position:relative;height:14px}
+.bar::before{content:"";position:absolute;left:50%;top:-4px;bottom:-4px;border-left:1px dashed var(--line)}
+.bar i{position:absolute;top:0;bottom:0;border-radius:3px}
+.amt{text-align:right;font-family:var(--f-num);font-weight:600}
+.pos{color:var(--pos)} .neg{color:var(--neg)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:7px 6px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:12px;color:var(--muted);font-weight:500}
+td{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+td:first-child{font-family:var(--f-body);font-weight:500}
+.game{display:flex;flex-direction:column;gap:8px}
+.game ol{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:2px 16px}
+.game li{display:flex;justify-content:space-between;font-size:14px}
+.game li .n{display:flex;gap:6px}
+.game li .n em{font-style:normal;font-family:var(--f-num);color:var(--muted);font-size:12px}
+.crown{color:var(--gold)}
+.formrow{display:grid;grid-template-columns:1fr 110px 36px;gap:6px}
+.sumline{font-size:13px}
+
+/* chips */
+.chipset{display:flex;flex-direction:column;gap:6px}
+.chipdef{display:grid;grid-template-columns:28px 1fr 90px 36px;gap:6px;align-items:center}
+.disc{width:24px;height:24px;border-radius:50%;border:3px dashed rgba(255,255,255,.7);box-shadow:0 0 0 1px var(--line);display:inline-block}
+.disc.sm{width:16px;height:16px;border-width:2px}
+.player{display:flex;flex-direction:column;gap:10px}
+.counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.counts label{display:flex;align-items:center;gap:6px;background:var(--sunk);border-radius:8px;padding:4px 6px}
+.counts .cname{font-size:12px;color:var(--muted);white-space:nowrap}
+.counts input{width:100%;border:0;background:transparent;padding:4px 0;text-align:right}
+.ptotal{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.big{font-family:var(--f-num);font-size:22px;font-weight:600}
+.settings{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.settings label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.settle{margin:0;padding:0;list-style:none}
+.settle li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)}
+.settle li:last-child{border-bottom:0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:20}
+@media (max-width:420px){.settings{grid-template-columns:1fr}.game ol{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:no-preference){.cell,.chip,.btn{transition:background .15s,border-color .15s}}
+</style>
+
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="brand"><h1>우리 포커 모임</h1><span class="suits">♠♥♦♣</span></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-sched" data-tab="sched" aria-selected="true">주말 일정</button>
+      <button class="tab" role="tab" id="tab-stats" data-tab="stats" aria-selected="false">게임 기록</button>
+      <button class="tab" role="tab" id="tab-calc" data-tab="calc" aria-selected="false">칩 계산</button>
+    </div>
+  </div>
+</header>
+<main class="main" id="app"></main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+const DEFAULT_CONFIG={unit:"",rate:0.1,buyIn:500,chips:[
+  {name:"흰색",color:"#e9e6dc",value:1},{name:"빨강",color:"#c0392b",value:5},
+  {name:"파랑",color:"#2c5aa0",value:10},{name:"초록",color:"#2e7d4f",value:25},{name:"검정",color:"#222222",value:100}]};
+const S={tab:"sched",games:[],avail:[],config:DEFAULT_CONFIG,db:null,dbReady:false,canWrite:true,
+  me:load("me",""),month:monthKey(new Date()),localSlots:null,confirmDel:null,
+  calc:load("calc5",null),form:null};
+
+function load(k,d){try{const v=localStorage.getItem("pk_"+k);return v?JSON.parse(v):d}catch(e){return d}}
+function save(k,v){try{localStorage.setItem("pk_"+k,JSON.stringify(v))}catch(e){}}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function monthKey(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")}
+function today(){const d=new Date();return monthKey(d)+"-"+String(d.getDate()).padStart(2,"0")}
+function hex(s){return Array.from(new TextEncoder().encode(s)).map(b=>b.toString(16).padStart(2,"0")).join("")}
+function r1(n){return Math.round(n*10)/10}
+function fmt(n){n=r1(n);const s=(Math.abs(n)%1===0)?Math.abs(n).toFixed(0):Math.abs(n).toFixed(1);return (n>0?"+":n<0?"−":"")+s}
+function cls(n){return n>0.04?"pos":n<-0.04?"neg":""}
+function unit(){return S.config.unit?" "+esc(S.config.unit):""}
+let toastT;function toast(m){const t=document.getElementById("toast");t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2200)}
+
+/* ---------- players ---------- */
+function knownPlayers(){
+  const tot={};
+  S.games.forEach(g=>(g.results||[]).forEach(r=>{tot[r.name]=(tot[r.name]||0)+1}));
+  S.avail.forEach(a=>{if(a.name&&!(a.name in tot))tot[a.name]=0});
+  if(S.me&&!(S.me in tot))tot[S.me]=0;
+  return Object.keys(tot).sort((a,b)=>tot[b]-tot[a]||a.localeCompare(b,"ko"));
+}
+
+/* ---------- schedule ---------- */
+function weekendDays(mk){
+  const [y,m]=mk.split("-").map(Number);const out=[];const d=new Date(y,m-1,1);
+  while(d.getMonth()===m-1){const w=d.getDay();if(w===6||w===0)out.push({key:monthKey(d)+"-"+String(d.getDate()).padStart(2,"0"),date:d.getDate(),dow:w});d.setDate(d.getDate()+1)}
+  return out;
+}
+function availMap(){
+  const map={};
+  S.avail.filter(a=>a.month===S.month).forEach(a=>{map[a.name]=a.slots||{}});
+  if(S.me&&S.localSlots&&S.localSlots.month===S.month)map[S.me]=S.localSlots.slots;
+  return map;
+}
+function isOn(v){return v===true||(Array.isArray(v)&&v.length>0)}
+function renderSched(){
+  const days=weekendDays(S.month);const map=availMap();
+  const people=Object.keys(map).filter(n=>Object.values(map[n]).some(isOn));
+  const who={};let max=0;days.forEach(d=>{who[d.key]=people.filter(p=>isOn(map[p][d.key]));max=Math.max(max,who[d.key].length)});
+  const mine=S.me?(map[S.me]||{}):{};const players=knownPlayers();const td=today();
+  const [y,m]=S.month.split("-").map(Number);const first=new Date(y,m-1,1).getDay();const nd=new Date(y,m,0).getDate();
+  const dowName=w=>w===6?"토":"일";const can=S.me&&S.canWrite;
+  let h=`<section>
+    <div class="spread"><div class="monthnav">
+      <button class="btn ghost" data-act="mprev" aria-label="이전 달">‹</button>
+      <span class="label num">${S.month.replace("-",".")}</span>
+      <button class="btn ghost" data-act="mnext" aria-label="다음 달">›</button></div>
+      <span class="muted small">응답 ${people.length}명 · 13–18시</span></div>
+    <div class="panel"><div class="eyebrow">나는</div>
+      <div class="who" style="margin-top:8px"><div class="chips">${players.map(p=>`<button class="chip" data-act="me" data-name="${esc(p)}" aria-pressed="${p===S.me}">${esc(p)}</button>`).join("")}</div>
+      <div class="row"><input type="text" id="newme" placeholder="새 이름" style="width:110px"><button class="btn" data-act="addme">추가</button></div></div>
+      <p class="small muted" style="margin:8px 0 0">${S.me?`<b>${esc(S.me)}</b> 님으로 표시 중. 되는 토·일 날짜를 누르세요. 다시 누르면 취소돼요.`:"이름을 고르면 달력에서 되는 날짜를 누를 수 있어요."}</p>
+    </div></section>`;
+  h+=`<section><div class="cal" role="grid" aria-label="${m}월 달력">${["일","월","화","수","목","금","토"].map((n,i)=>`<div class="dow ${i===0?"sun":i===6?"sat":""}">${n}</div>`).join("")}`;
+  for(let i=0;i<first;i++)h+=`<div class="cell blank"></div>`;
+  for(let d=1;d<=nd;d++){const w=(first+d-1)%7;const key=S.month+"-"+String(d).padStart(2,"0");
+    if(w!==0&&w!==6){h+=`<div class="cell wd"><span class="d">${d}</span></div>`;continue}
+    const ws=who[key];const on=isOn(mine[key]);const best=max>=2&&ws.length===max;
+    h+=`<button class="cell ${w===0?"sun":"sat"} ${on?"mine":""} ${best?"best":""} ${key<td?"past":""}" data-act="day" data-day="${key}" ${can?"":"disabled"} aria-pressed="${on}" aria-label="${m}월 ${d}일 ${dowName(w)}요일, ${ws.length}명 가능">
+      <span class="d">${d}</span><span class="cnt ${ws.length?"":"zero"}">${ws.length}</span><span class="dots">${ws.map(()=>"<i></i>").join("")}</span></button>`}
+  h+=`</div><div class="legend"><span><b style="background:var(--gold-bg);border:1px solid var(--gold)"></b>가장 많이 되는 날</span><span><b style="box-shadow:inset 0 0 0 2px var(--felt)"></b>내가 되는 날</span></div></section>`;
+  const listed=days.filter(d=>who[d.key].length).sort((a,b)=>who[b.key].length-who[a.key].length||a.key.localeCompare(b.key));
+  h+=`<section><h2>날짜별 가능한 사람</h2>`;
+  if(listed.length)h+=`<ol class="daylist">${listed.map(d=>`<li><b class="num">${m}/${d.date} <span class="small muted">${dowName(d.dow)}</span></b><span class="small">${who[d.key].map(esc).join(", ")}</span><span class="num" style="text-align:right;font-weight:600">${who[d.key].length}</span></li>`).join("")}</ol>`;
+  else h+=`<p class="muted small" style="margin:0">아직 ${m}월에 표시한 사람이 없어요. 이름을 고르고 되는 날을 눌러보세요.</p>`;
+  h+=`</section>`;
+  return h;
+}
+let slotTimer=null,slotWriting=false,slotDirty=false;
+function toggleDay(day){
+  const map=availMap();const base=JSON.parse(JSON.stringify(map[S.me]||{}));
+  if(isOn(base[day]))delete base[day];else base[day]=true;
+  S.localSlots={month:S.month,name:S.me,slots:base};render();
+  clearTimeout(slotTimer);slotTimer=setTimeout(flushSlots,600);
+}
+async function flushSlots(){
+  if(!S.db||!S.localSlots)return;
+  if(slotWriting){slotDirty=true;return}
+  slotWriting=true;const ls=S.localSlots;
+  try{await S.db.doc("avail/"+ls.month+"-"+hex(ls.name)).set({month:ls.month,name:ls.name,slots:ls.slots,updated:Date.now()})}
+  catch(e){writeFailed(e)}
+  slotWriting=false;if(slotDirty){slotDirty=false;flushSlots()}
+}
+function writeFailed(e){
+  if(e&&e.code==="permission-denied"){toast("저장이 거부됐어요. Firestore 규칙을 확인하세요")}
+  else toast("저장하지 못했어요. 잠시 후 다시 시도하세요");
+}
+
+/* ---------- stats ---------- */
+function stats(){
+  const p={};
+  const games=[...S.games].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  games.forEach(g=>{const rs=[...(g.results||[])].sort((a,b)=>b.amount-a.amount);
+    rs.forEach((r,i)=>{const o=p[r.name]||(p[r.name]={name:r.name,total:0,n:0,wins:0,best:-Infinity,worst:Infinity,plus:0});
+      o.total+=r.amount;o.n++;if(i===0)o.wins++;if(r.amount>0)o.plus++;o.best=Math.max(o.best,r.amount);o.worst=Math.min(o.worst,r.amount)})});
+  return Object.values(p).sort((a,b)=>b.total-a.total);
+}
+function renderStats(){
+  const st=stats();const games=[...S.games].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const maxAbs=Math.max(1,...st.map(s=>Math.abs(s.total)));
+  let h=`<section><div class="spread"><h2>누적 순위</h2><span class="muted small">단위 만원 · ${games.length}판 기록</span></div>`;
+  if(!st.length)h+=`<p class="muted small">기록이 없어요. 아래에서 첫 게임 결과를 추가하세요.</p>`;
+  else{
+    h+=`<div class="board">${st.map((s,i)=>{const w=Math.abs(s.total)/maxAbs*50;const left=s.total>=0?50:50-w;
+      return `<div class="brow"><span class="rank">${i+1}</span><b>${esc(s.name)}</b>
+        <span class="bar"><i style="left:${left}%;width:${w}%;background:var(--${s.total>=0?"pos":"neg"})"></i></span>
+        <span class="amt ${cls(s.total)}">${fmt(s.total)}</span></div>`}).join("")}</div>
+      <div class="tablewrap"><table><thead><tr><th>이름</th><th>참가</th><th>1등</th><th>플러스</th><th>평균</th><th>최고</th><th>최저</th></tr></thead><tbody>
+      ${st.map(s=>`<tr><td>${esc(s.name)}</td><td>${s.n}</td><td>${s.wins||"·"}</td><td>${Math.round(s.plus/s.n*100)}%</td><td class="${cls(s.total/s.n)}">${fmt(s.total/s.n)}</td><td class="${cls(s.best)}">${fmt(s.best)}</td><td class="${cls(s.worst)}">${fmt(s.worst)}</td></tr>`).join("")}
+      </tbody></table></div>`;
+  }
+  h+=`</section>`;
+  h+=`<section><div class="spread"><h2>게임별 결과</h2>${S.form?"":`<button class="btn primary" data-act="newgame" ${S.canWrite?"":"disabled"}>결과 추가</button>`}</div>`;
+  if(S.form)h+=renderForm();
+  games.forEach(g=>{const rs=[...(g.results||[])].sort((a,b)=>b.amount-a.amount);
+    h+=`<div class="panel game"><div class="spread"><div><b>${esc(g.title||"모임")}</b> <span class="muted small num">${esc(g.date||"")}</span></div>
+      ${S.confirmDel===g.id?`<div class="row"><span class="small">삭제할까요?</span><button class="btn danger" data-act="delyes" data-id="${g.id}">삭제</button><button class="btn" data-act="delno">취소</button></div>`
+      :(S.canWrite?`<button class="btn ghost small" data-act="del" data-id="${g.id}" aria-label="이 기록 삭제">삭제</button>`:"")}</div>
+      ${g.note?`<div class="small" style="color:var(--gold)">${esc(g.note)}</div>`:""}
+      <ol>${rs.map((r,i)=>`<li><span class="n"><em>${i+1}</em>${i===0?'<span class="crown">♛</span>':""}${esc(r.name)}</span><span class="num ${cls(r.amount)}">${fmt(r.amount)}</span></li>`).join("")}</ol></div>`});
+  h+=`</section>`;
+  return h;
+}
+function renderForm(){
+  const f=S.form;const sum=f.rows.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);
+  return `<div class="panel" style="display:flex;flex-direction:column;gap:10px">
+    <div class="row"><input type="date" id="f-date" value="${esc(f.date)}"><input type="text" id="f-title" value="${esc(f.title)}" placeholder="모임 이름" style="flex:1"></div>
+    <input type="text" id="f-note" value="${esc(f.note)}" placeholder="메모 (선택)">
+    ${f.rows.map((r,i)=>`<div class="formrow"><input type="text" id="f-n${i}" data-f="name" data-i="${i}" value="${esc(r.name)}" placeholder="이름" list="plist"><input type="number" step="0.1" inputmode="decimal" id="f-a${i}" data-f="amount" data-i="${i}" value="${esc(r.amount)}" placeholder="+/−"><button class="btn ghost" data-act="frm" data-i="${i}" aria-label="행 삭제">×</button></div>`).join("")}
+    <datalist id="plist">${knownPlayers().map(p=>`<option value="${esc(p)}">`).join("")}</datalist>
+    <div class="spread"><button class="btn" data-act="fadd">+ 사람 추가</button>
+      <span class="sumline ${Math.abs(sum)<0.05?"pos":"neg"}" id="f-sum">합계 <span class="num">${fmt(sum)}</span>${Math.abs(sum)<0.05?" · 딱 맞아요":" · 합이 0이 아니에요"}</span></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn" data-act="fcancel">취소</button><button class="btn primary" data-act="fsave">저장</button></div>
+  </div>`;
+}
+async function saveGame(g){
+  if(!S.db){toast("저장 기능을 쓸 수 없는 화면이에요");return false}
+  try{await S.db.collection("games").add(g);toast("기록을 저장했어요");return true}catch(e){writeFailed(e);return false}
+}
+
+/* ---------- chips ---------- */
+const CHIPS=[{name:"천원",color:"#4a7fc1",value:1000},{name:"오천원",color:"#d9782f",value:5000},{name:"만원",color:"#4f9a5e",value:10000},{name:"오만원",color:"#d8a928",value:50000}];
+function won(n,sign){const r=Math.round(n);const s=Math.abs(r).toLocaleString()+"원";return sign?(r>0?"+":r<0?"−":"")+s:s}
+function defaultCalc(){
+  return {example:true,players:[
+    {name:"필규",extra:0,counts:[3,1,2,15]},{name:"승구",extra:0,counts:[1,0,1,11]},
+    {name:"시즈",extra:0,counts:[4,1,3,8]},{name:"안테",extra:0,counts:[2,0,4,1]},
+    {name:"지수",extra:0,counts:[0,2,2,0]},{name:"기정",extra:300000,counts:[0,2,4,3]}],dealer:"필규"};
+}
+if(!S.calc)S.calc=defaultCalc();
+function buyIn(){const v=Number(S.config.buyIn);return v>=1000?v:300000}
+function points(p){return CHIPS.reduce((a,c,i)=>a+(Number(p.counts[i])||0)*c.value,0)}
+function nets(){return S.calc.players.map(p=>{const pts=points(p);const inn=buyIn()+(Number(p.extra)||0);return {p,pts,inn,net:pts-inn}})}
+function renderCalc(){
+  const ns=nets();const totPts=ns.reduce((a,n)=>a+n.pts,0);const totIn=ns.reduce((a,n)=>a+n.inn,0);const diff=totPts-totIn;
+  let h=`<section><div class="spread"><h2>칩 세기</h2><div class="row"><button class="btn" data-act="cadd">+ 사람</button><button class="btn ghost" data-act="creset">전부 지우기</button></div></div>
+    <div class="row small muted">초기금액 <input type="number" min="0" step="1000" inputmode="numeric" id="s-buyin" data-s="buyIn" value="${buyIn()}" style="width:110px">원 · 시작할 때 한 사람이 딜러에게 넣는 돈</div>`;
+  if(S.calc.example)h+=`<div class="notice">10월 비정기모임 결과를 칩으로 옮겨 본 예시예요. 기정은 추가금액 30만원을 넣은 것으로 계산했어요. 실제 게임에서는 <b>전부 지우기</b>를 누르고 입력하세요.</div>`;
+  ns.forEach((n,i)=>{const p=n.p;
+    h+=`<div class="panel player"><div class="row"><input type="text" id="c-n${i}" data-c="name" data-i="${i}" value="${esc(p.name)}" placeholder="이름" list="plist2" style="flex:1">
+      <label class="row small muted">추가금액 <input type="number" min="0" step="10000" inputmode="numeric" id="c-r${i}" data-c="extra" data-i="${i}" value="${p.extra?esc(p.extra):""}" placeholder="0" style="width:100px">원</label>
+      <button class="btn ghost" data-act="crm" data-i="${i}" aria-label="삭제">×</button></div>
+      <div class="counts">${CHIPS.map((ch,j)=>`<label><span class="cname">${ch.name}</span><input type="number" min="0" inputmode="numeric" id="c-${i}-${j}" data-c="count" data-i="${i}" data-j="${j}" value="${p.counts[j]??""}" placeholder="0" aria-label="${ch.name} 칩 개수"></label>`).join("")}</div>
+      <div class="ptotal"><span class="small muted">칩 <span class="num" id="pts${i}">${won(n.pts)}</span> − 넣은 돈 <span class="num" id="inn${i}">${won(n.inn)}</span></span><span class="big ${cls(n.net)}" id="net${i}">${won(n.net,1)}</span></div></div>`});
+  h+=`<datalist id="plist2">${knownPlayers().map(p=>`<option value="${esc(p)}">`).join("")}</datalist>`;
+  h+=`<div id="calc-check" class="${diff===0?"":"notice"} small">${checkText(totPts,totIn,diff)}</div>`;
+  h+=`<div class="row" style="justify-content:flex-end"><button class="btn primary" data-act="csave" ${S.canWrite?"":"disabled"}>이 결과를 게임 기록에 저장</button></div></section>`;
+  h+=`<section><div class="spread"><h2>딜러 정산</h2><label class="row small muted">딜러 <select id="c-dealer" data-dealer="1">${S.calc.players.map(p=>p.name.trim()).filter(Boolean).map(n=>`<option ${n===S.calc.dealer?"selected":""}>${esc(n)}</option>`).join("")}</select></label></div>
+    <p class="small muted" style="margin:0">딜러가 모두의 입금을 받고, 끝나면 각자 남은 칩만큼 돌려줘요.</p><div id="settle">${settleHtml(ns)}</div></section>`;
+  return h;
+}
+function checkText(totPts,totIn,diff){return diff===0?`칩 합계 <span class="num">${won(totPts)}</span> = 넣은 돈 합계. 딱 맞아요.`:`칩 합계 <span class="num">${won(totPts)}</span>, 넣은 돈 합계 <span class="num">${won(totIn)}</span>. <b class="num">${won(diff,1)}</b> 차이가 나요. 칩 개수나 추가금액을 다시 확인하세요.`}
+function settleHtml(ns){
+  const named=ns.filter(n=>n.p.name.trim());if(!named.length)return `<p class="muted small">이름을 입력하면 정산이 나와요.</p>`;
+  const dealer=S.calc.dealer&&named.some(n=>n.p.name.trim()===S.calc.dealer)?S.calc.dealer:named[0].p.name.trim();
+  const inTot=named.reduce((a,n)=>a+n.inn,0),outTot=named.reduce((a,n)=>a+n.pts,0),left=inTot-outTot;
+  return `<ol class="settle">${named.map(n=>{const nm=n.p.name.trim();const me=nm===dealer;
+    return `<li><span>${esc(nm)}${me?' <span class="small" style="color:var(--gold)">딜러</span>':""}<br><span class="small muted">입금 ${won(n.inn)} · 손익 <span class="${cls(n.net)}">${won(n.net,1)}</span></span></span><span class="num" style="text-align:right">${me?`<span class="small muted">본인 몫</span><br>`:`<span class="small muted">돌려받을 돈</span><br>`}<b>${won(n.pts)}</b></span></li>`}).join("")}</ol>
+  <div class="small" style="margin-top:8px">딜러가 받은 돈 <b class="num">${won(inTot)}</b> · 돌려줄 돈 <b class="num">${won(outTot)}</b> · ${left===0?'<span class="pos">남는 돈 없이 딱 맞아요</span>':`<span class="neg">${won(-left,1)} 차이. 칩 개수를 다시 확인하세요</span>`}</div>`;
+}
+let cfgTimer=null,cfgWriting=false,cfgDirty=false;
+function cfgChanged(){S.cfgLocal=true;clearTimeout(cfgTimer);cfgTimer=setTimeout(flushCfg,700)}
+async function flushCfg(){
+  if(!S.db)return;if(cfgWriting){cfgDirty=true;return}cfgWriting=true;
+  try{await S.db.doc("config/main").set(JSON.parse(JSON.stringify(S.config)))}catch(e){writeFailed(e)}
+  cfgWriting=false;S.cfgLocal=false;if(cfgDirty){cfgDirty=false;flushCfg()}
+}
+function saveCalc(){save("calc5",S.calc)}
+function updateCalcNumbers(){
+  const ns=nets();ns.forEach((n,i)=>{const a=document.getElementById("pts"+i),c=document.getElementById("inn"+i),b=document.getElementById("net"+i);if(a)a.textContent=won(n.pts);if(c)c.textContent=won(n.inn);if(b){b.textContent=won(n.net,1);b.className="big "+cls(n.net)}});
+  const totPts=ns.reduce((a,n)=>a+n.pts,0),totIn=ns.reduce((a,n)=>a+n.inn,0),d=totPts-totIn;
+  const ck=document.getElementById("calc-check");if(ck){ck.innerHTML=checkText(totPts,totIn,d);ck.className=(d===0?"":"notice")+" small"}
+  const st=document.getElementById("settle");if(st)st.innerHTML=settleHtml(ns);
+}
+
+/* ---------- render ---------- */
+function render(){
+  document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===S.tab));
+  const app=document.getElementById("app");
+  let pre="";
+  if(S.dbReady&&!S.db)pre=`<div class="notice">아직 Firebase 설정이 연결되지 않았어요. index.html 위쪽의 FIREBASE_CONFIG에 설정값을 붙여넣으세요. 지금은 저장이 되지 않아요.</div>`;
+  else if(!S.canWrite)pre=`<div class="notice">보기 전용으로 열려 있어요. 직접 입력하려면 방장에게 편집 권한을 요청하세요.</div>`;
+  app.innerHTML=pre+(S.tab==="sched"?renderSched():S.tab==="stats"?renderStats():renderCalc());
+}
+
+document.querySelector(".tabs").addEventListener("click",e=>{const t=e.target.closest(".tab");if(!t)return;S.tab=t.dataset.tab;save("tab",S.tab);render();window.scrollTo(0,0)});
+document.getElementById("app").addEventListener("click",async e=>{
+  const b=e.target.closest("[data-act]");if(!b||b.disabled)return;const a=b.dataset.act;
+  if(a==="mprev"||a==="mnext"){const [y,m]=S.month.split("-").map(Number);S.month=monthKey(new Date(y,m-1+(a==="mprev"?-1:1),1));S.localSlots=null;subAvail();render()}
+  else if(a==="me"){S.me=b.dataset.name;S.localSlots=null;save("me",S.me);render()}
+  else if(a==="addme"){const v=document.getElementById("newme").value.trim();if(v){S.me=v;S.localSlots=null;save("me",v);render()}}
+  else if(a==="day")toggleDay(b.dataset.day);
+  else if(a==="newgame"){const ps=knownPlayers().slice(0,6);S.form={date:today(),title:`${new Date().getMonth()+1}월 모임`,note:"",rows:(ps.length?ps:["",""]).map(n=>({name:n,amount:""}))};render()}
+  else if(a==="fadd"){readForm();S.form.rows.push({name:"",amount:""});render()}
+  else if(a==="frm"){readForm();S.form.rows.splice(+b.dataset.i,1);render()}
+  else if(a==="fcancel"){S.form=null;render()}
+  else if(a==="fsave"){readForm();const f=S.form;const rows=f.rows.filter(r=>r.name.trim()&&r.amount!=="").map(r=>({name:r.name.trim(),amount:r1(parseFloat(r.amount))}));
+    if(rows.length<2){toast("두 명 이상 입력하세요");return}
+    if(await saveGame({date:f.date,title:f.title.trim()||"모임",note:f.note.trim(),results:rows,created:Date.now()})){S.form=null;render()}}
+  else if(a==="del"){S.confirmDel=b.dataset.id;render()}
+  else if(a==="delno"){S.confirmDel=null;render()}
+  else if(a==="delyes"){try{await S.db.doc("games/"+b.dataset.id).delete();toast("삭제했어요")}catch(err){writeFailed(err)}S.confirmDel=null;render()}
+  else if(a==="cadd"){S.calc.players.push({name:"",extra:0,counts:[]});saveCalc();render()}
+  else if(a==="crm"){S.calc.players.splice(+b.dataset.i,1);saveCalc();render()}
+  else if(a==="creset"){S.calc={example:false,players:S.calc.players.map(p=>({name:S.calc.example?p.name:p.name,extra:0,counts:[]}))};saveCalc();render()}
+  else if(a==="csave"){const ns=nets().filter(n=>n.p.name.trim());if(ns.length<2){toast("두 명 이상 필요해요");return}
+    if(S.calc.example){toast("예시 숫자예요. 실제 칩을 입력한 뒤 저장하세요");return}
+    const ok=await saveGame({date:today(),title:`${new Date().getMonth()+1}월 모임`,note:"",results:ns.map(n=>({name:n.p.name.trim(),amount:r1(n.net/10000)})),created:Date.now()});
+    if(ok){S.tab="stats";render()}}
+  else if(a==="chipadd"){S.config.chips.push({name:"새 칩",color:document.getElementById("s-newcolor").value,value:50});cfgChanged();render()}
+  else if(a==="chiprm"){const j=+b.dataset.j;S.config.chips.splice(j,1);S.calc.players.forEach(p=>p.counts.splice(j,1));saveCalc();cfgChanged();render()}
+});
+function readForm(){const f=S.form;if(!f)return;f.date=document.getElementById("f-date").value;f.title=document.getElementById("f-title").value;f.note=document.getElementById("f-note").value;
+  document.querySelectorAll("[data-f]").forEach(el=>{f.rows[+el.dataset.i][el.dataset.f]=el.value})}
+document.getElementById("app").addEventListener("input",e=>{
+  const el=e.target;
+  if(el.dataset.f&&S.form){S.form.rows[+el.dataset.i][el.dataset.f]=el.value;const sum=S.form.rows.reduce((a,r)=>a+(parseFloat(r.amount)||0),0);const s=document.getElementById("f-sum");if(s){s.className="sumline "+(Math.abs(sum)<0.05?"pos":"neg");s.innerHTML=`합계 <span class="num">${fmt(sum)}</span>${Math.abs(sum)<0.05?" · 딱 맞아요":" · 합이 0이 아니에요"}`}}
+  else if(el.dataset.c){const p=S.calc.players[+el.dataset.i];if(el.dataset.c==="name")p.name=el.value;else if(el.dataset.c==="extra")p.extra=Math.max(0,parseInt(el.value)||0);else p.counts[+el.dataset.j]=el.value===""?"":Math.max(0,parseInt(el.value)||0);
+    if(S.calc.example&&el.dataset.c!=="name")S.calc.example=false;saveCalc();updateCalcNumbers()}
+  else if(el.dataset.dealer){S.calc.dealer=el.value;saveCalc();updateCalcNumbers()}
+  else if(el.dataset.s){const k=el.dataset.s;S.config[k]=k==="unit"?el.value:Math.max(0,parseFloat(el.value)||0);cfgChanged();updateCalcNumbers()}
+  else if(el.dataset.chip){const ch=S.config.chips[+el.dataset.j];if(el.dataset.chip==="name")ch.name=el.value;else ch.value=Math.max(0,parseFloat(el.value)||0);cfgChanged();updateCalcNumbers()}
+});
+
+/* ---------- data ---------- */
+let unAvail=null;
+function subAvail(){if(!S.db)return;if(unAvail)unAvail();
+  unAvail=S.db.collection("avail").where("month","==",S.month).onSnapshot(snap=>{S.avail=snap.docs.map(d=>d.data());
+    const mineSrv=S.avail.find(a=>a.name===S.me);
+    if(S.localSlots&&!slotWriting&&!slotTimer&&mineSrv&&JSON.stringify(mineSrv.slots)===JSON.stringify(S.localSlots.slots))S.localSlots=null;
+    if(S.tab==="sched")render()},()=>{})}
+S.tab=load("tab","sched");
+const SEED={date:"2026-10",title:"10월 비정기모임",note:"☆ 필규 첫 1등 축하 ☆",created:1792240000000,results:[{name:"필규",amount:47.8},{name:"승구",amount:26.1},{name:"시즈",amount:13.9},{name:"안테",amount:-20.8},{name:"지수",amount:-27},{name:"기정",amount:-40}]};
+(function start(){
+  const cfg=window.FIREBASE_CONFIG;S.dbReady=true;
+  if(!window.firebase||!cfg||!cfg.projectId||String(cfg.apiKey).includes("여기에")){S.db=null;S.canWrite=false;render();return}
+  try{firebase.initializeApp(cfg);S.db=firebase.firestore()}catch(e){S.db=null;S.canWrite=false;render();return}
+  const db=S.db;let seeded=false;
+  db.collection("games").onSnapshot(snap=>{
+    if(snap.empty&&!snap.metadata.fromCache&&!seeded){seeded=true;db.doc("games/g-2026-10-irregular").set(SEED).catch(()=>{})}
+    S.games=snap.docs.map(d=>({id:d.id,...d.data()}));if(!(document.activeElement&&document.activeElement.matches("input")))render()},e=>{console.error(e);toast("데이터를 불러오지 못했어요. Firestore 규칙을 확인하세요")});
+  db.doc("config/main").onSnapshot(snap=>{if(snap.exists&&!S.cfgLocal){const d=snap.data();S.config={...DEFAULT_CONFIG,...JSON.parse(JSON.stringify(d))};
+    if(!(S.tab==="calc"&&document.activeElement&&document.activeElement.matches("input")))render()}},()=>{});
+  subAvail();render();
+})();
+// clear timer flag after flush
+const _f=flushSlots;flushSlots=async function(){slotTimer=null;return _f()};
+})();
+</script>
+
+</body>
+</html>
