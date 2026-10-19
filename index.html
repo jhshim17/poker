@@ -89,8 +89,29 @@ button.cell:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .legend span{display:inline-flex;align-items:center;gap:5px}
 .legend b{display:inline-block;width:12px;height:12px;border-radius:3px}
+.ann{background:var(--felt);color:var(--felt-ink);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.ann.empty{background:var(--surface);color:var(--ink);border:1px dashed var(--line)}
+.ann .eb{font-size:11px;letter-spacing:.12em;font-weight:700;opacity:.75}
+.ann .when{font-family:var(--f-display);font-size:26px;line-height:1.15}
+.ann .when small{font-family:var(--f-body);font-size:14px;opacity:.8;margin-left:6px;white-space:nowrap}
+.ann .row2{display:grid;grid-template-columns:20px minmax(0,1fr);gap:6px 8px;font-size:14px;align-items:start}
+.ann .row2 span{overflow-wrap:anywhere}
+.ann .acts{display:flex;gap:8px;flex-wrap:wrap}
+.ann .acts a,.ann .acts button{background:rgba(255,255,255,.14);color:var(--felt-ink);border:1px solid rgba(255,255,255,.28);border-radius:8px;padding:6px 12px;font-size:13px;text-decoration:none;font-family:inherit;cursor:pointer}
+.ann .acts a:focus-visible,.ann .acts button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.ann .foot{font-size:12px;opacity:.75}
+.meetform{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.meetform label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.meetform .full{grid-column:1/-1}
+.meetform input{width:100%;min-width:0}
+input[type=url]{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px}
+button.cell.fixed{background:var(--felt);border-color:var(--felt);color:var(--felt-ink)}
+button.cell.fixed .d,button.cell.fixed .cnt{color:var(--felt-ink)!important}
+button.cell.fixed .dots i{background:var(--gold)}
+.fixtag{font-size:9px;font-weight:700;color:var(--gold);line-height:1}
+.fixbtn{font-size:12px;padding:3px 8px;border:1px solid var(--line);background:var(--surface);border-radius:6px;cursor:pointer;white-space:nowrap}
 .daylist{margin:0;padding:0;list-style:none}
-.daylist li{display:grid;grid-template-columns:76px 1fr 32px;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.daylist li{display:grid;grid-template-columns:76px minmax(0,1fr) 28px auto;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);align-items:baseline}
 .daylist li:last-child{border-bottom:0}
 .top3{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
 .top3 li{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
@@ -213,6 +234,40 @@ function availMap(){
   if(S.me&&S.localSlots&&S.localSlots.month===S.month)map[S.me]=S.localSlots.slots;
   return map;
 }
+S.meet=null;S.meetEdit=null;
+function dayLabel(key){const [y,m,d]=key.split("-").map(Number);const w="일월화수목금토"[new Date(y,m-1,d).getDay()];return `${m}월 ${d}일 ${w}`}
+function dday(key){const [y,m,d]=key.split("-").map(Number);const t=new Date();t.setHours(0,0,0,0);const n=Math.round((new Date(y,m-1,d)-t)/864e5);return n===0?"D-DAY":"D-"+n}
+function mapUrl(mt){if(mt.map&&/^https?:\/\//.test(mt.map))return mt.map;const q=mt.address||mt.place;return q?"https://map.naver.com/p/search/"+encodeURIComponent(q):""}
+function meetCard(map){
+  const e=S.meetEdit;
+  if(e)return `<section><div class="panel" style="display:flex;flex-direction:column;gap:12px"><h2>다음 모임 정하기</h2>
+    <div class="meetform">
+      <label>날짜<input type="date" id="mt-date" data-mt="date" value="${esc(e.date)}"></label>
+      <label>시간<input type="text" id="mt-time" data-mt="time" value="${esc(e.time)}"></label>
+      <label class="full">장소<input type="text" id="mt-place" data-mt="place" value="${esc(e.place)}" placeholder="예: 승구네 집"></label>
+      <label class="full">주소<input type="text" id="mt-address" data-mt="address" value="${esc(e.address)}" placeholder="예: 남해읍 화전로 12, 3층"></label>
+      <label class="full">지도 링크 (선택)<input type="url" id="mt-map" data-mt="map" value="${esc(e.map)}" placeholder="네이버·카카오맵 공유 링크. 비우면 주소로 검색해요"></label>
+      <label class="full">메모<input type="text" id="mt-memo" data-mt="memo" value="${esc(e.memo)}" placeholder="예: 초기금액 30만원 · 점심 먹고 오기"></label>
+    </div>
+    <div class="spread">${S.meet?'<button class="btn ghost danger" data-act="meetclear">공지 내리기</button>':"<span></span>"}<div class="row"><button class="btn" data-act="meetcancel">취소</button><button class="btn primary" data-act="meetsave">저장</button></div></div></div></section>`;
+  const mt=S.meet;const td=today();
+  if(!mt||!mt.date||mt.date<td){
+    return `<section><div class="ann empty"><div class="eb muted">다음 모임</div>
+      <div>${mt&&mt.date?`<span class="small muted">지난 모임: ${dayLabel(mt.date)}${mt.place?" · "+esc(mt.place):""}</span><br>`:""}<b>다음 모임을 정해주세요</b><br><span class="small muted">달력 아래 목록에서 "이 날로 확정"을 누르거나 바로 정할 수 있어요.</span></div>
+      <div><button class="btn primary" data-act="meetnew" ${S.db?"":"disabled"}>모임 정하기</button></div></div></section>`;
+  }
+  const avail=Object.keys(map).filter(n=>isOn((map[n]||{})[mt.date]));const sameMonth=mt.date.slice(0,7)===S.month;
+  const url=mapUrl(mt);const by=mt.by?` · ${esc(mt.by)}${mt.updated?`가 ${new Date(mt.updated).getMonth()+1}/${new Date(mt.updated).getDate()}에 수정`:""}`:"";
+  return `<section><div class="ann"><div class="eb">다음 모임 · ${dday(mt.date)}</div>
+    <div class="when">${dayLabel(mt.date)} ${mt.time?`<small>${esc(mt.time)}</small>`:""}</div>
+    ${mt.place||mt.address||mt.memo?`<div class="row2">${mt.place||mt.address?`<span>📍</span><span>${mt.place?`<b>${esc(mt.place)}</b>`:""}${mt.place&&mt.address?"<br>":""}${mt.address?`<span style="opacity:.8">${esc(mt.address)}</span>`:""}</span>`:""}${mt.memo?`<span>📝</span><span>${esc(mt.memo)}</span>`:""}</div>`:""}
+    <div class="acts">${url?`<a href="${esc(url)}" target="_blank" rel="noopener">지도 열기</a>`:""}${mt.address?`<button data-act="meetcopy">주소 복사</button>`:""}<button data-act="meetedit">수정</button></div>
+    <div class="foot">${sameMonth?`${avail.length}명 가능${avail.length?" · "+avail.map(esc).join(", "):""}`:""}${by}</div></div></section>`;
+}
+function readMeetForm(){document.querySelectorAll("[data-mt]").forEach(el=>{S.meetEdit[el.dataset.mt]=el.value})}
+async function saveMeet(){readMeetForm();const e=S.meetEdit;if(!e.date){toast("날짜를 골라주세요");return}
+  const doc={date:e.date,time:e.time.trim(),place:e.place.trim(),address:e.address.trim(),map:e.map.trim(),memo:e.memo.trim(),by:S.me||"",updated:Date.now()};
+  try{await S.db.doc("config/meet").set(doc);S.meet=doc;S.meetEdit=null;if(doc.date.slice(0,7)!==S.month){S.month=doc.date.slice(0,7);S.monthTouched=true;S.localSlots=null;subAvail()}render();toast("모임 공지를 저장했어요")}catch(err){writeFailed(err)}}
 function isOn(v){return v===true||(Array.isArray(v)&&v.length>0)}
 function renderSched(){
   const days=weekendDays(S.month);const map=availMap();
@@ -221,7 +276,8 @@ function renderSched(){
   const mine=S.me?(map[S.me]||{}):{};const players=knownPlayers();const td=today();
   const [y,m]=S.month.split("-").map(Number);const first=new Date(y,m-1,1).getDay();const nd=new Date(y,m,0).getDate();
   const dowName=w=>w===6?"토":"일";const can=S.me&&S.canWrite;
-  let h=`<section>
+  let h=meetCard(map);
+  h+=`<section>
     <div class="spread"><div class="monthnav">
       <button class="btn ghost" data-act="mprev" aria-label="이전 달">‹</button>
       <span class="label num">${S.month.replace("-",".")}</span>
@@ -232,13 +288,13 @@ function renderSched(){
   for(let i=0;i<first;i++)h+=`<div class="cell blank"></div>`;
   for(let d=1;d<=nd;d++){const w=(first+d-1)%7;const key=S.month+"-"+String(d).padStart(2,"0");
     if(w!==0&&w!==6){h+=`<div class="cell wd"><span class="d">${d}</span></div>`;continue}
-    const ws=who[key];const on=isOn(mine[key]);const best=max>=2&&ws.length===max;
-    h+=`<button class="cell ${w===0?"sun":"sat"} ${on?"mine":""} ${best?"best":""} ${key<td?"past":""}" data-act="day" data-day="${key}" ${can?"":"disabled"} aria-pressed="${on}" aria-label="${m}월 ${d}일 ${dowName(w)}요일, ${ws.length}명 가능">
-      <span class="d">${d}</span><span class="cnt ${ws.length?"":"zero"}">${ws.length}</span><span class="dots">${ws.map(()=>"<i></i>").join("")}</span></button>`}
+    const ws=who[key];const on=isOn(mine[key]);const best=max>=2&&ws.length===max;const fixed=S.meet&&S.meet.date===key;
+    h+=`<button class="cell ${w===0?"sun":"sat"} ${on?"mine":""} ${best?"best":""} ${fixed?"fixed":""} ${key<td?"past":""}" data-act="day" data-day="${key}" ${can?"":"disabled"} aria-pressed="${on}" aria-label="${m}월 ${d}일 ${dowName(w)}요일, ${ws.length}명 가능">
+      <span class="d">${d}</span>${fixed?'<span class="fixtag">확정</span>':""}<span class="cnt ${ws.length?"":"zero"}">${ws.length}</span><span class="dots">${ws.map(()=>"<i></i>").join("")}</span></button>`}
   h+=`</div><div class="legend"><span><b style="background:var(--gold-bg);border:1px solid var(--gold)"></b>가장 많이 되는 날</span><span><b style="box-shadow:inset 0 0 0 2px var(--felt)"></b>내가 되는 날</span></div></section>`;
   const listed=days.filter(d=>who[d.key].length).sort((a,b)=>who[b.key].length-who[a.key].length||a.key.localeCompare(b.key));
   h+=`<section><h2>날짜별 가능한 사람</h2>`;
-  if(listed.length)h+=`<ol class="daylist">${listed.map(d=>`<li><b class="num">${m}/${d.date} <span class="small muted">${dowName(d.dow)}</span></b><span class="small">${who[d.key].map(esc).join(", ")}</span><span class="num" style="text-align:right;font-weight:600">${who[d.key].length}</span></li>`).join("")}</ol>`;
+  if(listed.length)h+=`<ol class="daylist">${listed.map(d=>`<li><b class="num">${m}/${d.date} <span class="small muted">${dowName(d.dow)}</span></b><span class="small">${who[d.key].map(esc).join(", ")}</span><span class="num" style="text-align:right;font-weight:600">${who[d.key].length}</span>${S.meet&&S.meet.date===d.key?'<span class="fixtag" style="font-size:12px">확정</span>':(d.key>=td?`<button class="fixbtn" data-act="fixday" data-day="${d.key}">이 날로 확정</button>`:"<span></span>")}</li>`).join("")}</ol>`;
   else h+=`<p class="muted small" style="margin:0">아직 ${m}월에 표시한 사람이 없어요. 이름을 고르고 되는 날을 눌러보세요.</p>`;
   h+=`</section>`;
   return h;
@@ -422,6 +478,11 @@ document.getElementById("app").addEventListener("click",async e=>{
   const b=e.target.closest("[data-act]");if(!b||b.disabled)return;const a=b.dataset.act;
   if(a==="mprev"||a==="mnext"){S.monthTouched=true;const [y,m]=S.month.split("-").map(Number);S.month=monthKey(new Date(y,m-1+(a==="mprev"?-1:1),1));S.localSlots=null;subAvail();render()}
   else if(a==="day")toggleDay(b.dataset.day);
+  else if(a==="meetnew"||a==="meetedit"||a==="fixday"){const mt=S.meet&&S.meet.date>=today()?S.meet:{};S.meetEdit={date:a==="fixday"?b.dataset.day:(mt.date||""),time:mt.time||"13:00 – 18:00",place:mt.place||"",address:mt.address||"",map:mt.map||"",memo:mt.memo||""};render();window.scrollTo(0,0)}
+  else if(a==="meetcancel"){S.meetEdit=null;render()}
+  else if(a==="meetsave")saveMeet();
+  else if(a==="meetclear"){try{await S.db.doc("config/meet").delete();S.meet=null;S.meetEdit=null;render();toast("공지를 내렸어요")}catch(err){writeFailed(err)}}
+  else if(a==="meetcopy"){const t=S.meet&&S.meet.address||"";try{await navigator.clipboard.writeText(t);toast("주소를 복사했어요")}catch(err){toast(t)}}
   else if(a==="newgame"){const ps=knownPlayers().slice(0,6);S.form={date:today(),title:`${new Date().getMonth()+1}월 모임`,note:"",rows:(ps.length?ps:["",""]).map(n=>({name:n,amount:""}))};render()}
   else if(a==="fadd"){readForm();S.form.rows.push({name:"",amount:""});render()}
   else if(a==="frm"){readForm();S.form.rows.splice(+b.dataset.i,1);render()}
@@ -459,7 +520,7 @@ function subAvail(){if(!S.db)return;if(unAvail)unAvail();
   unAvail=S.db.collection("avail").where("month","==",S.month).onSnapshot(snap=>{S.avail=snap.docs.map(d=>d.data());
     const mineSrv=S.avail.find(a=>a.name===S.me);
     if(S.localSlots&&!slotWriting&&!slotTimer&&mineSrv&&JSON.stringify(mineSrv.slots)===JSON.stringify(S.localSlots.slots))S.localSlots=null;
-    if(S.tab==="sched")render()},()=>{})}
+    if(S.tab==="sched"&&!(document.activeElement&&document.activeElement.matches("#app input")))render()},()=>{})}
 S.tab=load("tab","sched");
 const SEED={date:"2026-10",title:"10월 비정기모임",note:"☆ 필규 첫 1등 축하 ☆",created:1792240000000,results:[{name:"필규",amount:47.8},{name:"승구",amount:26.1},{name:"시즈",amount:13.9},{name:"안테",amount:-20.8},{name:"지수",amount:-27},{name:"기정",amount:-40}]};
 (function start(){
@@ -474,6 +535,7 @@ const SEED={date:"2026-10",title:"10월 비정기모임",note:"☆ 필규 첫 1�
     if(!(S.tab==="calc"&&document.activeElement&&document.activeElement.matches("input")))render()}},()=>{});
   db.collection("config").where("kind","==","chip").onSnapshot(snap=>{S.chipSubs=snap.docs.map(d=>d.data());
     if(S.tab==="calc"){if(document.activeElement&&document.activeElement.matches("#app input"))updateCalcNumbers();else render()}},()=>{});
+  db.doc("config/meet").onSnapshot(snap=>{S.meet=snap.exists?snap.data():null;if(S.tab==="sched"&&!S.meetEdit)render()},()=>{});
   subAvail();render();
   // 투표가 있는 가장 늦은 달(이번 달 이후)을 바로 보여주기
   db.collection("avail").where("month",">=",monthKey(new Date())).get().then(snap=>{
