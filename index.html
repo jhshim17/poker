@@ -139,6 +139,16 @@ td:first-child{font-family:var(--f-body);font-weight:500}
 .settle{margin:0;padding:0;list-style:none}
 .settle li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)}
 .settle li:last-child{border-bottom:0}
+.brand{flex-wrap:wrap}
+.mebtn{margin-left:auto;background:rgba(255,255,255,.12);color:var(--felt-ink);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:4px 12px;font-size:13px;cursor:pointer}
+.mebtn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.modal{position:fixed;inset:0;z-index:30;background:rgba(10,20,15,.55);display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.modal .box{background:var(--surface);color:var(--ink);border-radius:16px;padding:20px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px;max-height:100%;overflow:auto}
+.modal h2{font-family:var(--f-display);font-weight:400;font-size:22px}
+.whogrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.whogrid button{border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:14px 4px;font-size:16px;font-weight:500;cursor:pointer}
+.whogrid button[aria-pressed="true"]{background:var(--felt);color:var(--felt-ink);border-color:var(--felt)}
+.whogrid button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:20}
 @media (max-width:420px){.settings{grid-template-columns:1fr}.game ol{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:no-preference){.cell,.chip,.btn{transition:background .15s,border-color .15s}}
@@ -148,7 +158,7 @@ td:first-child{font-family:var(--f-body);font-weight:500}
 <body>
 <header>
   <div class="hwrap">
-    <div class="brand"><h1>우리 포커 모임</h1><span class="suits">♠♥♦♣</span></div>
+    <div class="brand"><h1>우리 포커 모임</h1><span class="suits">♠♥♦♣</span><button class="mebtn" id="meBtn" type="button" hidden></button></div>
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" id="tab-sched" data-tab="sched" aria-selected="true">주말 일정</button>
       <button class="tab" role="tab" id="tab-stats" data-tab="stats" aria-selected="false">게임 기록</button>
@@ -157,6 +167,7 @@ td:first-child{font-family:var(--f-body);font-weight:500}
   </div>
 </header>
 <main class="main" id="app"></main>
+<div class="modal" id="whoModal" role="dialog" aria-modal="true" aria-labelledby="whoTitle" hidden></div>
 <div class="toast" id="toast" hidden></div>
 
 <script>
@@ -181,8 +192,9 @@ function unit(){return S.config.unit?" "+esc(S.config.unit):""}
 let toastT;function toast(m){const t=document.getElementById("toast");t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2200)}
 
 /* ---------- players ---------- */
+const MEMBERS=["필규","승구","시즈","안테","지수","기정"];
 function knownPlayers(){
-  const tot={};
+  const tot={};MEMBERS.forEach(m=>tot[m]=0);
   S.games.forEach(g=>(g.results||[]).forEach(r=>{tot[r.name]=(tot[r.name]||0)+1}));
   S.avail.forEach(a=>{if(a.name&&!(a.name in tot))tot[a.name]=0});
   if(S.me&&!(S.me in tot))tot[S.me]=0;
@@ -215,11 +227,7 @@ function renderSched(){
       <span class="label num">${S.month.replace("-",".")}</span>
       <button class="btn ghost" data-act="mnext" aria-label="다음 달">›</button></div>
       <span class="muted small">응답 ${people.length}명 · 13–18시</span></div>
-    <div class="panel"><div class="eyebrow">나는</div>
-      <div class="who" style="margin-top:8px"><div class="chips">${players.map(p=>`<button class="chip" data-act="me" data-name="${esc(p)}" aria-pressed="${p===S.me}">${esc(p)}</button>`).join("")}</div>
-      <div class="row"><input type="text" id="newme" placeholder="새 이름" style="width:110px"><button class="btn" data-act="addme">추가</button></div></div>
-      <p class="small muted" style="margin:8px 0 0">${S.me?`<b>${esc(S.me)}</b> 님으로 표시 중. 되는 토·일 날짜를 누르세요. 다시 누르면 취소돼요.`:"이름을 고르면 달력에서 되는 날짜를 누를 수 있어요."}</p>
-    </div></section>`;
+    <p class="small muted" style="margin:0"><b style="color:var(--ink)">${esc(S.me||"")}</b> 님으로 표시 중이에요. 되는 토·일 날짜를 누르세요. 다시 누르면 취소돼요.</p></section>`;
   h+=`<section><div class="cal" role="grid" aria-label="${m}월 달력">${["일","월","화","수","목","금","토"].map((n,i)=>`<div class="dow ${i===0?"sun":i===6?"sat":""}">${n}</div>`).join("")}`;
   for(let i=0;i<first;i++)h+=`<div class="cell blank"></div>`;
   for(let d=1;d<=nd;d++){const w=(first+d-1)%7;const key=S.month+"-"+String(d).padStart(2,"0");
@@ -315,7 +323,7 @@ function buyIn(){const v=Number(S.config.buyIn);return v>=1000?v:300000}
 function points(p){return CHIPS.reduce((a,c,i)=>a+(Number(p.counts[i])||0)*c.value,0)}
 function inOf(p){return buyIn()+(Number(p.extra)||0)}
 function nets(){return S.chipSubs.map(p=>{const pts=points(p);const inn=inOf(p);return {p,pts,inn,net:pts-inn}}).sort((a,b)=>b.net-a.net)}
-function mySub(){const n=(S.my.name||S.me||"").trim();return S.chipSubs.find(c=>c.name===n)}
+function mySub(){const n=(S.me||"").trim();return S.chipSubs.find(c=>c.name===n)}
 function myState(){const sub=mySub();if(!sub)return "none";const same=JSON.stringify((sub.counts||[]).map(Number))===JSON.stringify(CHIPS.map((c,j)=>Number(S.my.counts[j])||0))&&(Number(sub.extra)||0)===(Number(S.my.extra)||0);return same?"done":"changed"}
 function myStatusHtml(){const st=myState();const sub=mySub();
   if(st==="done"){const t=new Date(sub.updated||0);return `<span class="pos">✓ 반영됨 · ${t.getHours()}:${String(t.getMinutes()).padStart(2,"0")}</span>`}
@@ -323,12 +331,12 @@ function myStatusHtml(){const st=myState();const sub=mySub();
   return `<span class="muted">아직 반영하지 않았어요</span>`}
 function renderCalc(){
   const ns=nets();const totPts=ns.reduce((a,n)=>a+n.pts,0);const totIn=ns.reduce((a,n)=>a+n.inn,0);const diff=totPts-totIn;
-  const my=S.my;const myName=(my.name||S.me||"");const myPts=points(my);const myIn=inOf(my);
+  const my=S.my;const myName=S.me||"";const myPts=points(my);const myIn=inOf(my);
   const last=[...S.games].sort((a,b)=>String(b.created||b.date).localeCompare(String(a.created||a.date)))[0];
   const missing=last?(last.results||[]).map(r=>r.name).filter(n=>!S.chipSubs.some(c=>c.name===n)):[];
   let h=`<section><div class="row small muted">초기금액 <input type="number" min="0" step="10000" inputmode="numeric" id="s-buyin" data-s="buyIn" value="${buyIn()}" style="width:110px">원 · 시작할 때 한 사람이 딜러에게 넣는 돈 (모두 같은 값)</div></section>`;
   h+=`<section><h2>내 칩 입력</h2><div class="panel player">
-    <div class="row"><input type="text" id="my-name" data-my="name" value="${esc(myName)}" placeholder="내 이름" list="plist2" style="flex:1;min-width:100px">
+    <div class="row"><b style="flex:1;font-size:16px">${esc(myName)}</b>
       <label class="row small muted">추가금액 <input type="number" min="0" step="10000" inputmode="numeric" id="my-extra" data-my="extra" value="${my.extra?esc(my.extra):""}" placeholder="0" style="width:100px">원</label></div>
     <div class="counts">${CHIPS.map((ch,j)=>`<label><span class="cname">${ch.name}</span><input type="number" min="0" inputmode="numeric" id="my-${j}" data-my="count" data-j="${j}" value="${my.counts[j]??""}" placeholder="0" aria-label="${ch.name} 칩 개수"></label>`).join("")}</div>
     <div class="ptotal"><span class="small muted">칩 <span class="num" id="my-pts">${won(myPts)}</span> − 넣은 돈 <span class="num" id="my-in">${won(myIn)}</span></span><span class="big ${cls(myPts-myIn)}" id="my-net">${won(myPts-myIn,1)}</span></div>
@@ -372,12 +380,31 @@ function updateCalcNumbers(){
   if(a)a.textContent=won(p);if(b)b.textContent=won(i);if(c){c.textContent=won(p-i,1);c.className="big "+cls(p-i)}if(d)d.innerHTML=myStatusHtml();
 }
 async function submitMine(){
-  const name=(S.my.name||S.me||"").trim();if(!name){toast("이름을 먼저 입력하세요");return}
+  const name=(S.me||"").trim();if(!name){S.whoOpen=true;renderWho();return}
   if(!S.db){toast("저장 기능이 연결되지 않았어요");return}
   S.my.name=name;saveMy();
   const doc={kind:"chip",name,counts:CHIPS.map((c,j)=>Number(S.my.counts[j])||0),extra:Number(S.my.extra)||0,updated:Date.now()};
   try{await S.db.doc("config/chip-"+hex(name)).set(doc);toast("반영했어요")}catch(e){writeFailed(e)}
 }
+
+/* ---------- who am i ---------- */
+S.whoOpen=false;
+function renderWho(){
+  const m=document.getElementById("whoModal");const show=S.whoOpen||!S.me;m.hidden=!show;
+  const btn=document.getElementById("meBtn");btn.hidden=!S.me;btn.textContent=S.me?`나: ${S.me} · 바꾸기`:"";
+  if(!show)return;
+  m.innerHTML=`<div class="box"><div><h2 id="whoTitle">누구세요?</h2><p class="small muted" style="margin:4px 0 0">이 폰에서 쓸 이름을 골라주세요. 한 번 고르면 기억해요.</p></div>
+    <div class="whogrid">${knownPlayers().map(p=>`<button type="button" data-who="${esc(p)}" aria-pressed="${p===S.me}">${esc(p)}</button>`).join("")}</div>
+    <div class="row"><input type="text" id="whonew" placeholder="목록에 없으면 이름 입력" style="flex:1"><button class="btn" type="button" data-whoadd="1">확인</button></div>
+    ${S.me?`<div class="row" style="justify-content:flex-end"><button class="btn ghost" type="button" data-whoclose="1">닫기</button></div>`:""}</div>`;
+}
+function setMe(n){n=n.trim();if(!n)return;S.me=n;S.localSlots=null;save("me",n);S.my={name:n,counts:[],extra:0};const sub=S.chipSubs.find(c=>c.name===n);if(sub){S.my.counts=[...sub.counts];S.my.extra=sub.extra||0}saveMy();S.whoOpen=false;render();toast(`${n} 님, 반가워요`)}
+document.getElementById("whoModal").addEventListener("click",e=>{
+  const w=e.target.closest("[data-who]");if(w){setMe(w.dataset.who);return}
+  if(e.target.closest("[data-whoadd]")){setMe(document.getElementById("whonew").value);return}
+  if(e.target.closest("[data-whoclose]")||(e.target.id==="whoModal"&&S.me)){S.whoOpen=false;renderWho()}});
+document.getElementById("whoModal").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="whonew")setMe(e.target.value);if(e.key==="Escape"&&S.me){S.whoOpen=false;renderWho()}});
+document.getElementById("meBtn").addEventListener("click",()=>{S.whoOpen=true;renderWho()});
 
 /* ---------- render ---------- */
 function render(){
@@ -386,6 +413,7 @@ function render(){
   let pre="";
   if(S.dbReady&&!S.db)pre=`<div class="notice">아직 Firebase 설정이 연결되지 않았어요. index.html 위쪽의 FIREBASE_CONFIG에 설정값을 붙여넣으세요. 지금은 저장이 되지 않아요.</div>`;
   else if(!S.canWrite)pre=`<div class="notice">보기 전용으로 열려 있어요. 직접 입력하려면 방장에게 편집 권한을 요청하세요.</div>`;
+  if(!document.getElementById("whoModal").contains(document.activeElement)||!S.whoOpen&&S.me)renderWho();
   app.innerHTML=pre+(S.tab==="sched"?renderSched():S.tab==="stats"?renderStats():renderCalc());
 }
 
@@ -393,8 +421,6 @@ document.querySelector(".tabs").addEventListener("click",e=>{const t=e.target.cl
 document.getElementById("app").addEventListener("click",async e=>{
   const b=e.target.closest("[data-act]");if(!b||b.disabled)return;const a=b.dataset.act;
   if(a==="mprev"||a==="mnext"){const [y,m]=S.month.split("-").map(Number);S.month=monthKey(new Date(y,m-1+(a==="mprev"?-1:1),1));S.localSlots=null;subAvail();render()}
-  else if(a==="me"){S.me=b.dataset.name;S.localSlots=null;save("me",S.me);render()}
-  else if(a==="addme"){const v=document.getElementById("newme").value.trim();if(v){S.me=v;S.localSlots=null;save("me",v);render()}}
   else if(a==="day")toggleDay(b.dataset.day);
   else if(a==="newgame"){const ps=knownPlayers().slice(0,6);S.form={date:today(),title:`${new Date().getMonth()+1}월 모임`,note:"",rows:(ps.length?ps:["",""]).map(n=>({name:n,amount:""}))};render()}
   else if(a==="fadd"){readForm();S.form.rows.push({name:"",amount:""});render()}
